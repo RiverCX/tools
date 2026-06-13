@@ -247,6 +247,13 @@ SESSION_DETAIL_TEMPLATE = """
 .gantt-bar.depth-0 {{ background: #f3e5f5; }}
 .gantt-bar.depth-1 {{ background: #ede7f6; }}
 .gantt-bar.depth-2 {{ background: #e8def8; }}
+/* Gantt Expand Button & Content */
+.gantt-row-wrapper {{ margin-bottom: 2px; }}
+.gantt-expand-btn {{ background: none; border: none; cursor: pointer; font-size: 10px; color: #888; padding: 0 4px; transition: transform 0.2s; }}
+.gantt-expand-btn:hover {{ color: #4a90d9; }}
+.gantt-expand-btn.expanded {{ transform: rotate(180deg); }}
+.gantt-expand-content {{ margin: 0 0 8px 0; padding: 10px 15px; background: #fafafa; border: 1px solid #e0e0e0; border-radius: 0 0 8px 8px; max-height: 600px; overflow-y: auto; }}
+.gantt-expand-content .iteration-block {{ margin-bottom: 10px; }}
 /* Gantt Tooltip */
 .gantt-tooltip {{ position: fixed; pointer-events: none; background: #1a1a2e; color: white; padding: 12px 16px; border-radius: 8px; font-size: 13px; line-height: 1.8; z-index: 2000; box-shadow: 0 4px 16px rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.15s; max-width: 300px; }}
 .gantt-tooltip.visible {{ opacity: 1; }}
@@ -472,6 +479,19 @@ SESSION_DETAIL_TEMPLATE = """
         }}
         function hideGanttTooltip() {{
             document.getElementById('ganttTooltip').classList.remove('visible');
+        }}
+        function toggleGanttExpand(id) {{
+            const el = document.getElementById(id);
+            if (!el) return;
+            const btn = el.previousElementSibling?.querySelector('.gantt-expand-btn')
+                     || el.parentElement.querySelector('.gantt-expand-btn');
+            if (el.style.display === 'none') {{
+                el.style.display = 'block';
+                if (btn) btn.classList.add('expanded');
+            }} else {{
+                el.style.display = 'none';
+                if (btn) btn.classList.remove('expanded');
+            }}
         }}
     </script>
     <button id="goTopBtn" class="go-top-btn" title="Go to Top">&#8593;</button>

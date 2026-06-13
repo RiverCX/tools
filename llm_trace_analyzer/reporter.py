@@ -156,7 +156,7 @@ class HTMLReporter:
             f.write(html_content)
 
     def _generate_gantt_html(self, chain: LLMChain) -> str:
-        """生成交替式 Gantt 时间线：Parent 行与 SubAgent 行交替显示"""
+        """生成交替式 Gantt 时间线面板（支持垂直展开查看详情）"""
         if not chain.iteration_timings:
             return ""
 
@@ -175,81 +175,42 @@ class HTMLReporter:
         if not parent_timings:
             return ""
 
-        # 构建 parent → children 映射
-        children_map: Dict[str, List] = {}
-        for sa in chain.subagents:
-            p = sa.parent_session_id
-            if p not in children_map:
-                children_map[p] = []
-            children_map[p].append(sa)
-        for p in children_map:
-            children_map[p].sort(key=lambda s: s.start_time)
-
-        # 找到 parent 的 spawn 点（parent response 后有 child 开始）
-        spawn_groups: List[Tuple[float, List]] = []
-        direct_children = children_map.get(chain.session_id, [])
-        if direct_children:
-            # 按 spawn 时间分组（1s 内的视为同一组）
-            current_group = [direct_children[0]]
-            for sa in direct_children[1:]:
-                if sa.start_time - current_group[-1].start_time < 1.0:
-                    current_group.append(sa)
-                else:
-                    spawn_groups.append((current_group[0].start_time, current_group))
-                    current_group = [sa]
-            spawn_groups.append((current_group[0].start_time, current_group))
-
-        # 构建交替时间线
+        spawn_groups = self._build_spawn_groups(chain)
         rows: List[str] = []
+        row_counter = 0
 
-        def render_parent_window(win_start: float, win_end: float, label_suffix: str = ""):
-            """渲染一个 Parent 时间窗口行"""
+        def next_row_id() -> str:
+            nonlocal row_counter
+            row_counter += 1
+            return f"gantt-expand-{row_counter}"
+
+        def render_parent_window(win_start: float, win_end: float):
             window_timings = [
                 t for t in parent_timings
                 if t.request_timestamp >= win_start - 0.5 and t.response_timestamp <= win_end + 0.5
             ]
             if not window_timings:
-                # 没有 Main 迭代，跳过该行
                 return
 
             first_global = window_timings[0].iteration_num
+            bar_start = window_timings[0].request_timestamp
+            bar_end = max(t.response_timestamp + (t.tool_processing_duration or 0) for t in window_timings)
+            bar_end = min(bar_end, win_end)
+            bar_left = ((bar_start - session_start) / total_span) * 100
+            bar_width = max(((bar_end - bar_start) / total_span) * 100, 0.5)
 
-            # 构建段：LLM（蓝）+ Tool（橙），Main 不需要 Waiting（灰）
-            # 收集所有活动区间
-            intervals: List[Tuple[float, float, str]] = []
-            for t in window_timings:
-                intervals.append((t.request_timestamp, t.response_timestamp, "llm"))
-                if t.tool_processing_duration > 0:
-                    tool_end = min(t.response_timestamp + t.tool_processing_duration, win_end)
-                    intervals.append((t.response_timestamp, tool_end, "tool"))
-
-            # 按开始时间排序，直接渲染（不填充 wait）
-            intervals.sort(key=lambda x: x[0])
-            bar_start_ts = intervals[0][0] if intervals else win_start
-            bar_end_ts = max(i[1] for i in intervals) if intervals else win_end
-            agent_span = max(bar_end_ts - bar_start_ts, 0.001)
-            bar_left = ((bar_start_ts - session_start) / total_span) * 100
-            bar_width = max(((bar_end_ts - bar_start_ts) / total_span) * 100, 0.5)
-
-            segments: List[str] = []
-            for start, end, seg_type in intervals:
-                min_w = 0.8 if seg_type == "tool" else 0.3
-                w = max(((end - start) / agent_span) * 100, min_w)
-                segments.append(f'<div class="gantt-seg gantt-seg-{seg_type}" style="width:{w:.2f}%"></div>')
+            segments_html = self._build_segments(window_timings, bar_start, bar_end, is_parent=True)
+            expand_html = self._render_agent_flow(chain.session_id, chain)
 
             rows.append(self._gantt_row_html(
-                label=f"Main {label_suffix}",
-                tree_prefix="",
-                depth=0,
-                left_pct=bar_left,
-                width_pct=bar_width,
-                segments_html="".join(segments),
-                first_global=first_global,
+                label="Main", tree_prefix="", depth=0,
+                left_pct=bar_left, width_pct=bar_width,
+                segments_html=segments_html, first_global=first_global,
                 tooltip_data=self._tooltip_data(window_timings, "Main", win_start, win_end),
+                expandable_html=expand_html, row_id=next_row_id(),
             ))
 
         def render_subagent_row(sa, depth: int, is_last: List[bool]):
-            """渲染一个 SubAgent 行"""
             sa_timings = timings_by_session.get(sa.session_id, [])
             if not sa_timings:
                 return
@@ -262,54 +223,37 @@ class HTMLReporter:
             tree_prefix = "".join(prefix_parts)
 
             label = sa.chain_path[-1] if sa.chain_path else self._short_session_id(sa.session_id)
-            agent_start = sa.start_time
-            agent_end = sa.end_time
-            agent_span = max(agent_end - agent_start, 0.001)
-            bar_left = ((agent_start - session_start) / total_span) * 100
-            bar_width = max(((agent_end - agent_start) / total_span) * 100, 0.5)
+            bar_left = ((sa.start_time - session_start) / total_span) * 100
+            bar_width = max(((sa.end_time - sa.start_time) / total_span) * 100, 0.5)
 
-            segments: List[str] = []
-            for t in sa_timings:
-                llm_w = max((t.llm_call_duration / agent_span) * 100, 0.3)
-                tool_w = max((t.tool_processing_duration / agent_span) * 100, 0.8) if t.tool_processing_duration > 0 else 0
-                segments.append(f'<div class="gantt-seg gantt-seg-llm" style="width:{llm_w:.2f}%"></div>')
-                if tool_w > 0.1:
-                    segments.append(f'<div class="gantt-seg gantt-seg-tool" style="width:{tool_w:.2f}%"></div>')
+            segments_html = self._build_segments(sa_timings, sa.start_time, sa.end_time)
+            expand_html = self._render_agent_flow(sa.session_id, chain)
 
             rows.append(self._gantt_row_html(
-                label=label,
-                tree_prefix=tree_prefix,
-                depth=depth,
-                left_pct=bar_left,
-                width_pct=bar_width,
-                segments_html="".join(segments),
-                first_global=sa_timings[0].iteration_num,
+                label=label, tree_prefix=tree_prefix, depth=depth,
+                left_pct=bar_left, width_pct=bar_width,
+                segments_html=segments_html, first_global=sa_timings[0].iteration_num,
                 tooltip_data=self._tooltip_data(sa_timings, label),
+                expandable_html=expand_html, row_id=next_row_id(),
             ))
 
             # 递归渲染子 agent
-            children = children_map.get(sa.session_id, [])
+            children = self._children_by_session.get(sa.session_id, [])
             for i, child in enumerate(children):
                 render_subagent_row(child, depth + 1, is_last + [i == len(children) - 1])
 
         # 构建交替序列
         if not spawn_groups:
-            # 无 subagent，只显示一个 Parent 行
             render_parent_window(session_start, session_end)
         else:
-            # Parent 窗口 1：session_start → 第一个 spawn
-            render_parent_window(session_start, spawn_groups[0][0], "")
-
+            render_parent_window(session_start, spawn_groups[0][0])
             for gi, (spawn_time, group) in enumerate(spawn_groups):
-                # SubAgent 行
                 for i, sa in enumerate(group):
                     render_subagent_row(sa, 1, [i == len(group) - 1])
-
-                # 下一个 Parent 窗口
                 window_start = max(sa.end_time for sa in group)
                 window_end = spawn_groups[gi + 1][0] if gi + 1 < len(spawn_groups) else session_end
                 if window_end > window_start + 0.5:
-                    render_parent_window(window_start, window_end, "")
+                    render_parent_window(window_start, window_end)
 
         return GANTT_PANEL_TEMPLATE.format(
             agent_count=len(rows),
@@ -317,12 +261,63 @@ class HTMLReporter:
             gantt_bars_html="\n".join(rows),
         )
 
-    def _gantt_row_html(self, label, tree_prefix, depth, left_pct, width_pct, segments_html, first_global, tooltip_data) -> str:
+    def _build_segments(self, timings: List, span_start: float, span_end: float, is_parent: bool = False) -> str:
+        """构建 LLM/Tool 段的 HTML"""
+        if not timings:
+            return ""
+
+        intervals: List[Tuple[float, float, str]] = []
+        for t in timings:
+            intervals.append((t.request_timestamp, t.response_timestamp, "llm"))
+            if t.tool_processing_duration > 0:
+                tool_end = min(t.response_timestamp + t.tool_processing_duration, span_end)
+                intervals.append((t.response_timestamp, tool_end, "tool"))
+
+        intervals.sort(key=lambda x: x[0])
+        agent_span = max(span_end - span_start, 0.001)
+
+        segments: List[str] = []
+        for start, end, seg_type in intervals:
+            min_w = 0.8 if seg_type == "tool" else 0.3
+            w = max(((end - start) / agent_span) * 100, min_w)
+            segments.append(f'<div class="gantt-seg gantt-seg-{seg_type}" style="width:{w:.2f}%"></div>')
+        return "".join(segments)
+
+    def _build_spawn_groups(self, chain: LLMChain) -> List[Tuple[float, List]]:
+        """构建 parent 的 spawn 分组"""
+        direct_children = self._children_by_session.get(chain.session_id, [])
+        if not direct_children:
+            return []
+
+        spawn_groups: List[Tuple[float, List]] = []
+        current_group = [direct_children[0]]
+        for sa in direct_children[1:]:
+            if sa.start_time - current_group[-1].start_time < 1.0:
+                current_group.append(sa)
+            else:
+                spawn_groups.append((current_group[0].start_time, current_group))
+                current_group = [sa]
+        spawn_groups.append((current_group[0].start_time, current_group))
+        return spawn_groups
+
+    def _gantt_row_html(
+        self, label: str, tree_prefix: str, depth: int,
+        left_pct: float, width_pct: float, segments_html: str,
+        first_global: int, tooltip_data: Dict,
+        expandable_html: str = "", row_id: str = "",
+    ) -> str:
         depth_class = "parent" if depth == 0 else str(min(depth - 1, 2))
         data_attrs = " ".join(f'data-{k}="{html.escape(str(v))}"' for k, v in tooltip_data.items())
+        expand_btn = ""
+        expand_section = ""
+        if expandable_html:
+            expand_btn = f'<button class="gantt-expand-btn" onclick="toggleGanttExpand(\'{row_id}\')" title="展开详情">&#9660;</button>'
+            expand_section = f'<div class="gantt-expand-content" id="{row_id}" style="display:none">{expandable_html}</div>'
         return (
+            f'<div class="gantt-row-wrapper">'
             f'<div class="gantt-row">'
             f'<div class="gantt-label" style="padding-left:{depth * 16}px">'
+            f'{expand_btn}'
             f'<span class="gantt-tree">{html.escape(tree_prefix)}</span>'
             f'{html.escape(label)}'
             f'</div>'
@@ -336,6 +331,8 @@ class HTMLReporter:
             f'onmouseleave="hideGanttTooltip()">'
             f'{segments_html}'
             f'</div></div></div>'
+            f'{expand_section}'
+            f'</div>'
         )
 
     def _tooltip_data(self, timings, label: str, start_ts: float = 0, end_ts: float = 0) -> Dict:
@@ -665,13 +662,6 @@ class HTMLReporter:
     def _next_id(self) -> str:
         self._id_counter += 1
         return f"content_{self._id_counter}"
-
-    def _calc_depth_from_label(self, label: str) -> int:
-        """从 source_label 计算嵌套深度，如 'Parent → Sub[xxx] → Fork[xxx]'"""
-        if not label:
-            return 0
-        arrows = label.split(" → ")
-        return len(arrows) - 1
 
     def _generate_request_html(
         self,
