@@ -414,6 +414,21 @@ SESSION_DETAIL_TEMPLATE = """
 .go-top-btn {{ position: fixed; bottom: 30px; right: 30px; width: 44px; height: 44px; background: #4a90d9; color: white; border: none; border-radius: 50%; cursor: pointer; font-size: 20px; line-height: 44px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.2); opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s, background 0.2s; z-index: 1000; }}
 .go-top-btn:hover {{ background: #3a7bc8; }}
 .go-top-btn.visible {{ opacity: 1; visibility: visible; }}
+/* Agent Block (single subagent collapsible) */
+.agent-block {{ margin: 10px 0 15px 20px; border-left: 3px solid #7b1fa2; padding-left: 0; }}
+.agent-block .collapsible {{ background: #f3e5f5; border-radius: 0 4px 4px 0; }}
+.agent-block .collapsible:hover {{ background: #e1d5e7; }}
+.agent-block .collapsible-content {{ padding: 10px 0 10px 10px; }}
+/* Parallel Group (tabbed subagents) */
+.parallel-group {{ margin: 10px 0 15px 20px; border-left: 3px solid #7b1fa2; padding: 0; }}
+.parallel-header {{ padding: 8px 12px; background: #f3e5f5; border-radius: 0 4px 0 0; }}
+.parallel-group .tab-nav {{ border-bottom: 2px solid #e0e0e0; padding: 0 5px; background: #faf5fc; }}
+.parallel-group .tab-panel {{ padding: 10px 0 10px 10px; }}
+/* Depth colors for nested agents */
+.agent-block.depth-1, .parallel-group.depth-1 {{ border-left-color: #9c27b0; }}
+.agent-block.depth-1 .collapsible, .parallel-group.depth-1 .parallel-header {{ background: #ede7f6; }}
+.agent-block.depth-2, .parallel-group.depth-2 {{ border-left-color: #ba68c8; }}
+.agent-block.depth-2 .collapsible, .parallel-group.depth-2 .parallel-header {{ background: #e8def8; }}
     </style>
 </head>
 <body>
@@ -425,8 +440,7 @@ SESSION_DETAIL_TEMPLATE = """
             <div class="meta">Duration: {session_duration} | LLM: {total_llm_duration} | Tool: {total_tool_duration} | Avg LLM: {avg_llm_per_iter}</div>
         </div>
         {gantt_html}
-        {tabs_nav_html}
-        {tabs_content_html}
+        {iterations_html}
     </div>
     <script>
         function toggleCollapsible(element) {{
@@ -635,6 +649,30 @@ GANTT_PANEL_TEMPLATE = """
             {gantt_bars_html}
         </div>
     </div>
+</div>
+"""
+
+AGENT_BLOCK_TEMPLATE = """
+<div class="agent-block depth-{depth_class}">
+    <div class="collapsible" onclick="toggleCollapsible(this)">
+        <span class="toggle-icon">&#9654;</span>
+        <span class="label subagent">{label}</span>
+        <span class="char-count">{iteration_count} iters | {duration}</span>
+    </div>
+    <div class="collapsible-content">
+        {content_html}
+    </div>
+</div>
+"""
+
+PARALLEL_GROUP_TEMPLATE = """
+<div class="parallel-group">
+    <div class="parallel-header">
+        <span class="label subagent">Parallel Agents ({agent_count})</span>
+        <span class="char-count">{duration}</span>
+    </div>
+    {tab_nav_html}
+    {tab_content_html}
 </div>
 """
 

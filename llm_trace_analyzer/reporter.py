@@ -8,12 +8,14 @@ from typing import Dict, List, Optional, Tuple
 
 from .models import AnalysisResult, IterationTiming, LLMChain, LLMRequest, LLMResponse, SubagentInfo
 from .templates import (
+    AGENT_BLOCK_TEMPLATE,
     CONTENT_TEMPLATE,
     GANTT_BAR_TEMPLATE,
     GANTT_PANEL_TEMPLATE,
     INDEX_TEMPLATE,
     ITERATION_DETAIL_TEMPLATE,
     JSON_BLOCK_TEMPLATE,
+    PARALLEL_GROUP_TEMPLATE,
     REASONING_TEMPLATE,
     REQUEST_TEMPLATE,
     RESPONSE_TEMPLATE,
@@ -92,149 +94,24 @@ class HTMLReporter:
         short_id = self._short_session_id(chain.session_id)
         detail_file = report_dir / f"session_{short_id}.html"
 
-        agent_groups = self._build_agent_groups(chain)
-        has_subagents = len(agent_groups) > 1
-
-        gantt_html = self._generate_gantt_html(chain, agent_groups) if has_subagents else ""
-        tabs_nav_html = self._generate_tabs_nav_html(agent_groups)
-        tabs_content_html = self._generate_tabs_content_html(chain, agent_groups)
-
-        num_iters = len(chain.iteration_timings)
-        avg_llm = chain.total_llm_duration_seconds / num_iters if num_iters > 0 else 0
-
-        html_content = SESSION_DETAIL_TEMPLATE.format(
-            session_id_short=short_id,
-            session_id=chain.session_id,
-            model_name=chain.model_name,
-            total_iterations=chain.total_iterations,
-            start_time=self._format_timestamp(chain.start_time),
-            end_time=self._format_timestamp(chain.end_time),
-            session_duration=self._format_duration(chain.end_time - chain.start_time),
-            total_llm_duration=self._format_duration(chain.total_llm_duration_seconds),
-            total_tool_duration=self._format_duration(chain.total_tool_duration_seconds),
-            avg_llm_per_iter=self._format_duration(avg_llm),
-            gantt_html=gantt_html,
-            tabs_nav_html=tabs_nav_html,
-            tabs_content_html=tabs_content_html,
-        )
-
-        with open(detail_file, "w", encoding="utf-8") as f:
-            f.write(html_content)
-
-    def _build_agent_groups(self, chain: LLMChain) -> List[Dict]:
-        """将 iteration_timings 按 session_id 分组，返回 Agent 元数据列表"""
-        # 按 session_id 分组 timings
-        timings_by_session: Dict[str, List] = {}
-        for timing in chain.iteration_timings:
-            sid = timing.session_id
-            if sid not in timings_by_session:
-                timings_by_session[sid] = []
-            timings_by_session[sid].append(timing)
-
-        groups: List[Dict] = []
-
-        # Parent session
-        parent_timings = timings_by_session.get(chain.session_id, [])
-        parent_start = parent_timings[0].request_timestamp if parent_timings else chain.start_time
-        parent_end = parent_timings[-1].response_timestamp if parent_timings else chain.end_time
-        groups.append({
-            "agent_key": "parent",
-            "label": "Parent",
-            "session_id": chain.session_id,
-            "is_parent": True,
-            "depth": -1,
-            "start_time": parent_start,
-            "end_time": parent_end,
-            "iteration_count": len(parent_timings),
-            "timings": parent_timings,
-        })
-
-        # Subagent sessions
-        sorted_subagents = sorted(chain.subagents, key=lambda s: (s.depth, s.start_time))
-        for sa in sorted_subagents:
-            sa_timings = timings_by_session.get(sa.session_id, [])
-            label = sa.chain_path[-1] if sa.chain_path else self._short_session_id(sa.session_id)
-            agent_key = f"sub_{self._short_session_id(sa.session_id)}"
-            groups.append({
-                "agent_key": agent_key,
-                "label": label,
-                "session_id": sa.session_id,
-                "is_parent": False,
-                "depth": sa.depth,
-                "start_time": sa.start_time,
-                "end_time": sa.end_time,
-                "iteration_count": len(sa_timings),
-                "timings": sa_timings,
-            })
-
-        return groups
-
-    def _generate_gantt_html(self, chain: LLMChain, agent_groups: List[Dict]) -> str:
-        """生成 Gantt 时间线面板"""
-        session_start = chain.start_time
-        session_end = chain.end_time
-        total_span = max(session_end - session_start, 0.001)
-
-        bars: List[str] = []
-        for group in agent_groups:
-            left_pct = ((group["start_time"] - session_start) / total_span) * 100
-            width_pct = max(((group["end_time"] - group["start_time"]) / total_span) * 100, 0.5)
-            depth_class = "parent" if group["is_parent"] else str(min(group["depth"], 2))
-            bar_text = f'{group["iteration_count"]} iters'
-            duration = self._format_duration(group["end_time"] - group["start_time"])
-
-            bars.append(GANTT_BAR_TEMPLATE.format(
-                label=group["label"],
-                full_label=group["label"],
-                agent_key=group["agent_key"],
-                left_pct=f"{left_pct:.1f}",
-                width_pct=f"{width_pct:.1f}",
-                depth_class=depth_class,
-                bar_text=bar_text,
-                duration=duration,
-                iteration_count=group["iteration_count"],
-            ))
-
-        return GANTT_PANEL_TEMPLATE.format(
-            agent_count=len(agent_groups),
-            total_duration=self._format_duration(chain.end_time - chain.start_time),
-            gantt_bars_html="\n".join(bars),
-        )
-
-    def _generate_tabs_nav_html(self, agent_groups: List[Dict]) -> str:
-        """生成 Tab 导航按钮"""
-        buttons: List[str] = []
-        for i, group in enumerate(agent_groups):
-            active_class = " active" if i == 0 else ""
-            buttons.append(TAB_BUTTON_TEMPLATE.format(
-                agent_key=group["agent_key"],
-                label=group["label"],
-                iteration_count=group["iteration_count"],
-                active_class=active_class,
-            ))
-        return TAB_NAV_TEMPLATE.format(tab_buttons_html="\n".join(buttons))
-
-    def _generate_tabs_content_html(self, chain: LLMChain, agent_groups: List[Dict]) -> str:
-        """生成所有 Tab 面板内容"""
-        # 构建全局 tool_call_id → tool_name 映射表
-        global_tool_name_map: Dict[str, str] = {}
+        # Build shared state
+        self._global_tool_name_map = {}
         for resp in chain.responses:
             if resp.tool_calls:
                 for tc in resp.tool_calls:
                     tc_id = tc.get("id", "")
                     tc_name = tc.get("name", "") or tc.get("function", {}).get("name", "")
                     if tc_id and tc_name:
-                        global_tool_name_map[tc_id] = tc_name
+                        self._global_tool_name_map[tc_id] = tc_name
 
-        # 构建 timing_map (global_num -> timing info)
-        timing_map: Dict[int, Dict] = {}
+        self._timing_map: Dict[int, Dict] = {}
         for timing in chain.iteration_timings:
-            timing_map[timing.iteration_num] = {
+            self._timing_map[timing.iteration_num] = {
                 "llm_duration": timing.llm_call_duration,
                 "tool_duration": timing.tool_processing_duration,
             }
 
-        # 按 (session_id, iteration) 配对请求和响应
+        # Build global numbering
         paired_items: Dict[Tuple[str, int], Dict] = {}
         for req in chain.requests:
             key = (req.session_id, req.iteration)
@@ -250,90 +127,127 @@ class HTMLReporter:
             if paired_items[key]["timestamp"] == 0:
                 paired_items[key]["timestamp"] = resp.timestamp
 
-        # 按 timestamp 排序，分配全局编号
         sorted_items = sorted(paired_items.values(), key=lambda x: x["timestamp"])
-        global_num_map: Dict[Tuple[str, int], int] = {}
+        self._global_num_map: Dict[Tuple[str, int], int] = {}
         for i, item in enumerate(sorted_items):
             req = item["request"]
             resp = item["response"]
-            if req:
-                key = (req.session_id, req.iteration)
-            else:
-                key = (resp.session_id, resp.iteration)
-            global_num_map[key] = i + 1
+            key = (req.session_id, req.iteration) if req else (resp.session_id, resp.iteration)
+            self._global_num_map[key] = i + 1
 
-        # 按 session_id 分组
-        items_by_session: Dict[str, List] = {}
-        for item in sorted_items:
-            req = item["request"]
-            resp = item["response"]
-            sid = req.session_id if req else resp.session_id
-            if sid not in items_by_session:
-                items_by_session[sid] = []
-            items_by_session[sid].append(item)
+        # Build parent-child map for subagents
+        self._children_by_session: Dict[str, List] = {}
+        for sa in chain.subagents:
+            parent_sid = self._get_parent_session_id(sa.session_id, chain)
+            if parent_sid not in self._children_by_session:
+                self._children_by_session[parent_sid] = []
+            self._children_by_session[parent_sid].append(sa)
 
-        # 为每个 Agent 生成 Tab 面板
-        panels: List[str] = []
-        for i, group in enumerate(agent_groups):
-            active_class = " active" if i == 0 else ""
-            agent_items = items_by_session.get(group["session_id"], [])
+        # Render main flow
+        iterations_html = self._render_agent_flow(chain.session_id, chain)
 
-            iterations_html = self._generate_agent_iterations_html(
-                agent_items, group, global_tool_name_map, global_num_map, timing_map
-            )
-            timing_list_html = self._generate_agent_timing_html(group, chain, global_num_map)
+        num_iters = len(chain.iteration_timings)
+        avg_llm = chain.total_llm_duration_seconds / num_iters if num_iters > 0 else 0
 
-            panels.append(TAB_PANEL_TEMPLATE.format(
-                agent_key=group["agent_key"],
-                active_class=active_class,
-                timing_list_html=timing_list_html,
-                iterations_html=iterations_html,
-            ))
+        html_content = SESSION_DETAIL_TEMPLATE.format(
+            session_id_short=short_id,
+            session_id=chain.session_id,
+            model_name=chain.model_name,
+            total_iterations=chain.total_iterations,
+            start_time=self._format_timestamp(chain.start_time),
+            end_time=self._format_timestamp(chain.end_time),
+            session_duration=self._format_duration(chain.end_time - chain.start_time),
+            total_llm_duration=self._format_duration(chain.total_llm_duration_seconds),
+            total_tool_duration=self._format_duration(chain.total_tool_duration_seconds),
+            avg_llm_per_iter=self._format_duration(avg_llm),
+            gantt_html="",
+            iterations_html=iterations_html,
+        )
 
-        return TAB_CONTENT_WRAPPER_TEMPLATE.format(tab_panels_html="\n".join(panels))
+        with open(detail_file, "w", encoding="utf-8") as f:
+            f.write(html_content)
 
-    def _generate_agent_iterations_html(
-        self,
-        agent_items: List[Dict],
-        agent_group: Dict,
-        global_tool_name_map: Dict[str, str],
-        global_num_map: Dict[Tuple[str, int], int],
-        timing_map: Dict[int, Dict],
-    ) -> str:
-        """生成单个 Agent 的迭代块列表"""
+    def _get_parent_session_id(self, session_id: str, chain: LLMChain) -> str:
+        """从 session_id 推断直接 parent 的 session_id"""
+        if "_fork_agent_" in session_id:
+            parts = session_id.split("_fork_agent_")
+            partial_parent = parts[0]
+            # 找到完整匹配的 session
+            all_sessions = {r.session_id for r in chain.requests} | {r.session_id for r in chain.responses}
+            for sid in all_sessions:
+                if sid == partial_parent or sid.endswith(partial_parent):
+                    return sid
+            return partial_parent
+        if "_subagent_" in session_id:
+            parts = session_id.split("_subagent_")
+            return parts[0]
+        return chain.session_id
+
+    def _render_agent_flow(self, session_id: str, chain: LLMChain) -> str:
+        """渲染一个 Agent 的完整流程：迭代 + 内嵌的 subAgent 块"""
+        # 获取该 session 的请求和响应
+        reqs = sorted([r for r in chain.requests if r.session_id == session_id], key=lambda r: r.timestamp)
+        resps = sorted([r for r in chain.responses if r.session_id == session_id], key=lambda r: r.timestamp)
+
+        # 按 iteration 配对
+        paired: Dict[int, Dict] = {}
+        for req in reqs:
+            if req.iteration not in paired:
+                paired[req.iteration] = {"request": None, "response": None, "timestamp": 0}
+            paired[req.iteration]["request"] = req
+            paired[req.iteration]["timestamp"] = req.timestamp
+        for resp in resps:
+            if resp.iteration not in paired:
+                paired[resp.iteration] = {"request": None, "response": None, "timestamp": 0}
+            paired[resp.iteration]["response"] = resp
+            if paired[resp.iteration]["timestamp"] == 0:
+                paired[resp.iteration]["timestamp"] = resp.timestamp
+
+        sorted_iters = sorted(paired.keys(), key=lambda k: paired[k]["timestamp"])
+
+        # 获取该 session 的直接子 Agent
+        children = self._children_by_session.get(session_id, [])
+        children_by_spawn: Dict[int, List] = {}
+        if children:
+            # 按 spawn 时间匹配到 parent response
+            for child in sorted(children, key=lambda s: s.start_time):
+                spawn_idx = -1
+                for i, iter_key in enumerate(sorted_iters):
+                    resp = paired[iter_key]["response"]
+                    if resp and resp.timestamp <= child.start_time:
+                        spawn_idx = i
+                if spawn_idx >= 0:
+                    iter_key = sorted_iters[spawn_idx]
+                    if iter_key not in children_by_spawn:
+                        children_by_spawn[iter_key] = []
+                    children_by_spawn[iter_key].append(child)
+
+        # 渲染流程
         parts: List[str] = []
         prev_request: Optional[LLMRequest] = None
 
-        for i, item in enumerate(agent_items):
-            local_num = i + 1
+        for local_idx, iter_key in enumerate(sorted_iters):
+            local_num = local_idx + 1
+            item = paired[iter_key]
             req = item["request"]
             resp = item["response"]
 
-            # 获取全局编号
-            if req:
-                key = (req.session_id, req.iteration)
-            else:
-                key = (resp.session_id, resp.iteration)
-            global_num = global_num_map.get(key, 0)
+            key = (req.session_id, req.iteration) if req else (resp.session_id, resp.iteration)
+            global_num = self._global_num_map.get(key, 0)
 
-            # 获取时间统计
-            timing_info = timing_map.get(global_num, {})
+            timing_info = self._timing_map.get(global_num, {})
             llm_duration_str = self._format_duration(timing_info.get("llm_duration", 0))
             tool_duration_str = self._format_duration(timing_info.get("tool_duration", 0))
 
             request_html = ""
-            depth = 0
-            depth_indicator = ""
             body_id = ""
             body_json = ""
             copy_body_btn = ""
 
             if req:
-                is_subagent_first_request = (
-                    req.source == "subagent" and prev_request is None
-                )
+                is_first = prev_request is None and req.source == "subagent"
                 request_html = self._generate_request_html(
-                    req, prev_request, global_tool_name_map, is_subagent_first_request
+                    req, prev_request, self._global_tool_name_map, is_first
                 )
                 if not req.is_internal:
                     prev_request = req
@@ -351,8 +265,8 @@ class HTMLReporter:
             iteration_html = ITERATION_DETAIL_TEMPLATE.format(
                 local_num=local_num,
                 global_num=global_num,
-                depth=depth,
-                depth_indicator=depth_indicator,
+                depth=0,
+                depth_indicator="",
                 llm_duration=llm_duration_str,
                 tool_duration=tool_duration_str,
                 copy_body_btn=copy_body_btn,
@@ -363,73 +277,72 @@ class HTMLReporter:
             )
             parts.append(iteration_html)
 
+            # 在此迭代后插入 subAgent 块
+            if iter_key in children_by_spawn:
+                spawn_children = children_by_spawn[iter_key]
+                if len(spawn_children) == 1:
+                    parts.append(self._render_subagent_block(spawn_children[0], chain))
+                else:
+                    parts.append(self._render_parallel_group(spawn_children, chain))
+
         return "\n".join(parts)
 
-    def _generate_agent_timing_html(
-        self,
-        agent_group: Dict,
-        chain: LLMChain,
-        global_num_map: Dict[Tuple[str, int], int],
-    ) -> str:
-        """生成单个 Agent 的 timing 面板"""
-        timings = agent_group["timings"]
-        if not timings:
-            return ""
+    def _render_subagent_block(self, subagent, chain: LLMChain) -> str:
+        """渲染单个 subAgent 的折叠块"""
+        depth_class = str(min(subagent.depth, 2))
+        label = subagent.chain_path[-1] if subagent.chain_path else self._short_session_id(subagent.session_id)
+        duration = self._format_duration(subagent.end_time - subagent.start_time)
 
-        # 构建该 Agent 的 response_map
-        session_id = agent_group["session_id"]
-        agent_requests = [r for r in chain.requests if r.session_id == session_id]
-        agent_responses = [r for r in chain.responses if r.session_id == session_id]
+        # 递归渲染 subAgent 的流程
+        content_html = self._render_agent_flow(subagent.session_id, chain)
 
-        paired: Dict[Tuple[str, int], Dict] = {}
-        for req in agent_requests:
-            key = (req.session_id, req.iteration)
-            if key not in paired:
-                paired[key] = {"timestamp": req.timestamp, "response": None}
-        for resp in agent_responses:
-            key = (resp.session_id, resp.iteration)
-            if key not in paired:
-                paired[key] = {"timestamp": resp.timestamp, "response": resp}
-            else:
-                paired[key]["response"] = resp
-                if paired[key]["timestamp"] == 0:
-                    paired[key]["timestamp"] = resp.timestamp
+        return AGENT_BLOCK_TEMPLATE.format(
+            depth_class=depth_class,
+            label=label,
+            iteration_count=len([r for r in chain.requests if r.session_id == subagent.session_id]),
+            duration=duration,
+            content_html=content_html,
+        )
 
-        sorted_items = sorted(paired.values(), key=lambda x: x["timestamp"])
-        response_map: Dict[int, Optional[LLMResponse]] = {}
-        for i, item in enumerate(sorted_items):
-            response_map[i + 1] = item["response"]
+    def _render_parallel_group(self, subagents: List, chain: LLMChain) -> str:
+        """渲染并行 subAgent 组的 Tab 页"""
+        min_start = min(s.start_time for s in subagents)
+        max_end = max(s.end_time for s in subagents)
+        duration = self._format_duration(max_end - min_start)
+        depth_class = str(min(subagents[0].depth, 2))
 
-        timing_items: List[str] = []
-        for local_idx, timing in enumerate(timings):
-            local_num = local_idx + 1
-            global_num = timing.iteration_num
-            resp = response_map.get(local_num)
-            content = resp.content if resp else ""
-            content_preview = content[:80] + "..." if len(content) > 80 else content
-            if not content_preview:
-                content_preview = "(no content)"
+        # 生成 Tab 按钮
+        buttons: List[str] = []
+        panels: List[str] = []
+        for i, sa in enumerate(sorted(subagents, key=lambda s: s.start_time)):
+            label = sa.chain_path[-1] if sa.chain_path else self._short_session_id(sa.session_id)
+            agent_key = f"sa_{self._short_session_id(sa.session_id)}_{id(sa) % 10000}"
+            active_class = " active" if i == 0 else ""
+            iter_count = len([r for r in chain.requests if r.session_id == sa.session_id])
 
-            total_seconds = timing.llm_call_duration + timing.tool_processing_duration
+            buttons.append(TAB_BUTTON_TEMPLATE.format(
+                agent_key=agent_key,
+                label=label,
+                iteration_count=iter_count,
+                active_class=active_class,
+            ))
 
-            item_html = TIMING_ITEM_TEMPLATE.format(
-                local_num=local_num,
-                global_num=global_num,
-                llm_seconds=timing.llm_call_duration,
-                tool_seconds=timing.tool_processing_duration,
-                total_seconds=total_seconds,
-                llm_duration=self._format_duration(timing.llm_call_duration),
-                tool_duration=self._format_duration(timing.tool_processing_duration),
-                total_duration=self._format_duration(total_seconds),
-                content_preview=html.escape(content_preview),
-                content_full=html.escape(content),
-            )
-            timing_items.append(item_html)
+            content_html = self._render_agent_flow(sa.session_id, chain)
+            panels.append(TAB_PANEL_TEMPLATE.format(
+                agent_key=agent_key,
+                active_class=active_class,
+                timing_list_html="",
+                iterations_html=content_html,
+            ))
 
-        return TIMING_LIST_TEMPLATE.format(
-            total_iterations=len(timings),
-            timing_list_id=f"timing-list-{agent_group['agent_key']}",
-            timing_items_html="\n".join(timing_items),
+        tab_nav_html = TAB_NAV_TEMPLATE.format(tab_buttons_html="\n".join(buttons))
+        tab_content_html = TAB_CONTENT_WRAPPER_TEMPLATE.format(tab_panels_html="\n".join(panels))
+
+        return PARALLEL_GROUP_TEMPLATE.format(
+            agent_count=len(subagents),
+            duration=duration,
+            tab_nav_html=tab_nav_html,
+            tab_content_html=tab_content_html,
         )
 
     def _short_session_id(self, session_id: str) -> str:
