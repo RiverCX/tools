@@ -337,18 +337,7 @@ SESSION_DETAIL_TEMPLATE = """
         .header .meta {{ font-size: 14px; opacity: 0.9; }}
         .back-link {{ margin-bottom: 15px; }}
         .back-link a {{ color: #4a90d9; }}
-        .subagents-tree {{ background: white; border-radius: 8px; padding: 15px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
-        .subagents-tree h3 {{ margin-bottom: 10px; color: #4a90d9; }}
-        .subagent-node {{ padding: 5px 0; }}
-        .subagent-node.depth-0 {{ padding-left: 0; }}
-        .subagent-node.depth-1 {{ padding-left: 20px; background: #f8f9fa; }}
-        .subagent-node.depth-2 {{ padding-left: 40px; background: #f0f0f0; }}
-        .subagent-node.depth-3 {{ padding-left: 60px; background: #e8e8e8; }}
-        .subagent-node .arrow {{ color: #888; margin-right: 5px; }}
         .iteration-block {{ border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 15px; }}
-        .iteration-block.depth-1 {{ margin-left: 20px; border-left: 3px solid #7b1fa2; }}
-        .iteration-block.depth-2 {{ margin-left: 40px; border-left: 3px solid #9c27b0; }}
-        .iteration-block.depth-3 {{ margin-left: 60px; border-left: 3px solid #ba68c8; }}
         .iteration-header {{ background: #f8f9fa; padding: 10px 15px; font-weight: bold; border-bottom: 1px solid #e0e0e0; position: relative; }}
         .iteration-header .copy-btn {{ position: static; margin-left: 15px; padding: 4px 12px; opacity: 0.9; }}
         .time-stats {{ margin-left: 15px; color: #666; font-size: 12px; font-weight: normal; }}
@@ -363,9 +352,6 @@ SESSION_DETAIL_TEMPLATE = """
         .label.tool {{ background: #fff3e0; color: #f57c00; }}
         .label.reasoning {{ background: #fce4ec; color: #c2185b; }}
         .label.subagent {{ background: #f3e5f5; color: #7b1fa2; }}
-        .label.depth-1 {{ background: #ede7f6; }}
-        .label.depth-2 {{ background: #d1c4e9; }}
-        .label.depth-3 {{ background: #b39ddb; }}
         .collapsible {{ cursor: pointer; padding: 8px 12px; background: #e0e0e0; border-radius: 4px; margin-bottom: 8px; }}
         .collapsible:hover {{ background: #d0d0d0; }}
         .collapsible-content {{ display: none; }}
@@ -374,7 +360,6 @@ SESSION_DETAIL_TEMPLATE = """
         .toggle-icon.rotated {{ transform: rotate(90deg); }}
         .timestamp {{ color: #666; font-size: 12px; }}
         .char-count {{ color: #888; font-size: 11px; background: #f0f0f0; padding: 2px 6px; border-radius: 3px; margin-left: 10px; }}
-        .chain-label {{ font-size: 11px; color: #666; }}
 .toggle-view-btn {{ margin-bottom: 10px; padding: 4px 12px; background: #4a90d9; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }}
 .toggle-view-btn:hover {{ background: #3a7bc8; }}
 .tool-view-names {{ display: none; }}
@@ -383,17 +368,40 @@ SESSION_DETAIL_TEMPLATE = """
 .tool-view-full.expanded {{ display: block; }}
 .tool-names-grid {{ display: flex; flex-wrap: wrap; gap: 6px; padding: 10px; background: #f8f9fa; border-radius: 4px; }}
 .tool-name-item {{ background: #e3f2fd; color: #1976d2; padding: 3px 8px; border-radius: 3px; font-size: 12px; font-family: monospace; }}
+/* Gantt Timeline */
+.gantt-panel {{ background: white; border-radius: 8px; padding: 15px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+.gantt-chart {{ max-height: 300px; overflow-y: auto; padding-top: 5px; }}
+.gantt-row {{ display: flex; align-items: center; height: 32px; margin-bottom: 4px; }}
+.gantt-label {{ width: 140px; flex-shrink: 0; font-size: 12px; color: #666; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 8px; text-align: right; }}
+.gantt-track {{ flex: 1; position: relative; height: 24px; background: #f8f9fa; border-radius: 4px; }}
+.gantt-bar {{ position: absolute; top: 1px; height: 22px; border-radius: 4px; cursor: pointer; transition: opacity 0.2s, box-shadow 0.2s; display: flex; align-items: center; padding: 0 6px; min-width: 4px; }}
+.gantt-bar:hover {{ opacity: 0.85; box-shadow: 0 0 0 2px #4a90d9; }}
+.gantt-bar.depth-parent {{ background: #4a90d9; }}
+.gantt-bar.depth-0 {{ background: #7b1fa2; }}
+.gantt-bar.depth-1 {{ background: #9c27b0; }}
+.gantt-bar.depth-2 {{ background: #ba68c8; }}
+.gantt-bar-text {{ font-size: 11px; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+/* Tab Navigation */
+.tab-nav {{ display: flex; flex-wrap: wrap; gap: 0; margin-bottom: 0; border-bottom: 2px solid #e0e0e0; padding: 0 5px; }}
+.tab-btn {{ padding: 10px 16px; border: 1px solid transparent; border-bottom: none; border-radius: 8px 8px 0 0; background: #f0f0f0; cursor: pointer; font-size: 13px; margin-bottom: -2px; color: #666; transition: all 0.2s; }}
+.tab-btn:hover {{ background: #e8e8e8; }}
+.tab-btn.active {{ background: white; color: #4a90d9; font-weight: bold; border-color: #e0e0e0; border-bottom-color: white; }}
+.tab-badge {{ background: #e0e0e0; color: #666; padding: 2px 7px; border-radius: 10px; font-size: 11px; margin-left: 4px; }}
+.tab-btn.active .tab-badge {{ background: #4a90d9; color: white; }}
+.tab-panel {{ display: none; padding-top: 15px; }}
+.tab-panel.active {{ display: block; }}
+/* Timing Panel */
 .timing-panel {{ background: white; border-radius: 8px; padding: 15px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
 .timing-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }}
-.timing-header h3 {{ color: #4a90d9; }}
-.timing-controls {{ display: flex; gap: 10px; }}
-.sort-btn {{ padding: 4px 12px; background: #e0e0e0; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }}
+.timing-header h3 {{ color: #4a90d9; font-size: 14px; }}
+.timing-controls {{ display: flex; gap: 8px; }}
+.sort-btn {{ padding: 4px 10px; background: #e0e0e0; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }}
 .sort-btn:hover {{ background: #d0d0d0; }}
 .sort-btn.active {{ background: #4a90d9; color: white; }}
-.timing-list {{ max-height: 400px; overflow-y: auto; }}
+.timing-list {{ max-height: 300px; overflow-y: auto; }}
 .timing-item {{ display: flex; align-items: center; padding: 8px 12px; border-bottom: 1px solid #e0e0e0; cursor: pointer; }}
 .timing-item:hover {{ background: #f8f9fa; }}
-.timing-item-num {{ width: 60px; font-weight: bold; color: #4a90d9; }}
+.timing-item-num {{ width: 80px; font-weight: bold; color: #4a90d9; }}
 .timing-item-times {{ width: 260px; display: flex; }}
 .timing-item-time {{ font-size: 12px; width: 85px; }}
 .timing-item-time.llm {{ color: #388e3c; }}
@@ -401,6 +409,8 @@ SESSION_DETAIL_TEMPLATE = """
 .timing-item-time.total {{ color: #4a90d9; font-weight: bold; }}
 .timing-item-content {{ flex: 1; font-size: 13px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
 .timing-item-content:hover {{ overflow: visible; white-space: normal; }}
+.global-ref {{ font-size: 10px; color: #aaa; font-weight: normal; }}
+/* Go to Top */
 .go-top-btn {{ position: fixed; bottom: 30px; right: 30px; width: 44px; height: 44px; background: #4a90d9; color: white; border: none; border-radius: 50%; cursor: pointer; font-size: 20px; line-height: 44px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.2); opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s, background 0.2s; z-index: 1000; }}
 .go-top-btn:hover {{ background: #3a7bc8; }}
 .go-top-btn.visible {{ opacity: 1; visibility: visible; }}
@@ -414,9 +424,9 @@ SESSION_DETAIL_TEMPLATE = """
             <div class="meta">Model: {model_name} | Iterations: {total_iterations} | {start_time} - {end_time}</div>
             <div class="meta">Duration: {session_duration} | LLM: {total_llm_duration} | Tool: {total_tool_duration} | Avg LLM: {avg_llm_per_iter}</div>
         </div>
-        {timing_list_html}
-        {subagents_tree_html}
-        {iterations_html}
+        {gantt_html}
+        {tabs_nav_html}
+        {tabs_content_html}
     </div>
     <script>
         function toggleCollapsible(element) {{
@@ -466,14 +476,28 @@ SESSION_DETAIL_TEMPLATE = """
                 btn.textContent = 'Toggle: Full';
             }}
         }}
-        function sortTimingList(sortType) {{
-            const list = document.getElementById('timing-list');
+        function switchTab(agentKey) {{
+            document.querySelectorAll('.tab-btn').forEach(btn => {{
+                btn.classList.toggle('active', btn.dataset.tab === agentKey);
+            }});
+            document.querySelectorAll('.tab-panel').forEach(panel => {{
+                panel.classList.toggle('active', panel.dataset.agentKey === agentKey);
+            }});
+            document.querySelectorAll('.gantt-bar').forEach(bar => {{
+                bar.style.boxShadow = bar.dataset.agentKey === agentKey
+                    ? '0 0 0 2px #4a90d9' : '';
+            }});
+        }}
+        function sortTimingList(sortType, clickedBtn) {{
+            const panel = clickedBtn.closest('.tab-panel');
+            const list = panel ? panel.querySelector('.timing-list') : document.querySelector('.timing-list');
+            if (!list) return;
+            const controls = clickedBtn.closest('.timing-controls');
+            if (controls) {{
+                controls.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+                clickedBtn.classList.add('active');
+            }}
             const items = Array.from(list.querySelectorAll('.timing-item'));
-
-            // 更新按钮状态
-            document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelector(`.sort-btn[data-sort="${{sortType}}"]`).classList.add('active');
-
             if (sortType === 'iteration') {{
                 items.sort((a, b) => parseInt(a.dataset.num) - parseInt(b.dataset.num));
             }} else if (sortType === 'llm') {{
@@ -483,15 +507,20 @@ SESSION_DETAIL_TEMPLATE = """
             }} else if (sortType === 'total') {{
                 items.sort((a, b) => parseFloat(b.dataset.total) - parseFloat(a.dataset.total));
             }}
-
             items.forEach(item => list.appendChild(item));
         }}
-        function jumpToIteration(iterNum) {{
-            const iterationBlock = document.querySelector(`.iteration-block[data-iteration="${{iterNum}}"]`);
-            if (iterationBlock) {{
-                iterationBlock.scrollIntoView({{ behavior: 'smooth', block: 'start' }});
-                iterationBlock.style.boxShadow = '0 0 0 3px #4a90d9';
-                setTimeout(() => iterationBlock.style.boxShadow = '', 2000);
+        function jumpToIteration(globalNum) {{
+            const block = document.querySelector(`.iteration-block[data-global-iteration="${{globalNum}}"]`);
+            if (!block) return;
+            const panel = block.closest('.tab-panel');
+            if (panel) {{
+                const agentKey = panel.dataset.agentKey;
+                switchTab(agentKey);
+                requestAnimationFrame(() => {{
+                    block.scrollIntoView({{ behavior: 'smooth', block: 'start' }});
+                    block.style.boxShadow = '0 0 0 3px #4a90d9';
+                    setTimeout(() => block.style.boxShadow = '', 2000);
+                }});
             }}
         }}
         (function() {{
@@ -529,9 +558,9 @@ SUBAGENT_NODE_TEMPLATE = """
 """
 
 ITERATION_DETAIL_TEMPLATE = """
-<div class="iteration-block depth-{depth}" data-iteration="{iteration_num}">
+<div class="iteration-block" data-iteration="{local_num}" data-global-iteration="{global_num}">
     <div class="iteration-header">
-        Iteration {iteration_num} {depth_indicator}
+        #{local_num} {depth_indicator}
         <span class="time-stats">LLM: {llm_duration} | Tool: {tool_duration}</span>
         {copy_body_btn}
         <pre style="display: none;" id="{body_id}">{body_json}</pre>
@@ -545,28 +574,24 @@ ITERATION_DETAIL_TEMPLATE = """
 
 TIMING_LIST_TEMPLATE = """
 <div class="timing-panel">
-    <div class="collapsible" onclick="toggleCollapsible(this)">
-        <span class="toggle-icon rotated">&#9654;</span> Timing Overview ({total_iterations} iterations)
+    <div class="timing-header">
+        <h3>Timing ({total_iterations} iterations)</h3>
+        <div class="timing-controls">
+            <button class="sort-btn active" data-sort="iteration" onclick="sortTimingList('iteration', this)">Iteration</button>
+            <button class="sort-btn" data-sort="llm" onclick="sortTimingList('llm', this)">LLM Time</button>
+            <button class="sort-btn" data-sort="tool" onclick="sortTimingList('tool', this)">Tool Time</button>
+            <button class="sort-btn" data-sort="total" onclick="sortTimingList('total', this)">Total</button>
+        </div>
     </div>
-    <div class="collapsible-content expanded">
-        <div class="timing-header">
-            <div class="timing-controls">
-                <button class="sort-btn active" data-sort="iteration" onclick="sortTimingList('iteration')">Sort: Iteration</button>
-                <button class="sort-btn" data-sort="llm" onclick="sortTimingList('llm')">Sort: LLM Time</button>
-                <button class="sort-btn" data-sort="tool" onclick="sortTimingList('tool')">Sort: Tool Time</button>
-                <button class="sort-btn" data-sort="total" onclick="sortTimingList('total')">Sort: Total</button>
-            </div>
-        </div>
-        <div class="timing-list" id="timing-list">
-            {timing_items_html}
-        </div>
+    <div class="timing-list" id="{timing_list_id}">
+        {timing_items_html}
     </div>
 </div>
 """
 
 TIMING_ITEM_TEMPLATE = """
-<div class="timing-item" data-num="{iteration_num}" data-llm="{llm_seconds}" data-tool="{tool_seconds}" data-total="{total_seconds}" onclick="jumpToIteration({iteration_num})">
-    <div class="timing-item-num">#{iteration_num}</div>
+<div class="timing-item" data-num="{local_num}" data-global-num="{global_num}" data-llm="{llm_seconds}" data-tool="{tool_seconds}" data-total="{total_seconds}" onclick="jumpToIteration({global_num})">
+    <div class="timing-item-num">#{local_num} <span class="global-ref">({global_num})</span></div>
     <div class="timing-item-times">
         <span class="timing-item-time total">Total: {total_duration}</span>
         <span class="timing-item-time llm">LLM: {llm_duration}</span>
@@ -597,5 +622,58 @@ TOOLS_SECTION_TEMPLATE = """
             {tools_html}
         </div>
     </div>
+</div>
+"""
+
+GANTT_PANEL_TEMPLATE = """
+<div class="gantt-panel">
+    <div class="collapsible" onclick="toggleCollapsible(this)">
+        <span class="toggle-icon rotated">&#9654;</span> Agent Timeline ({agent_count} agents, {total_duration})
+    </div>
+    <div class="collapsible-content expanded">
+        <div class="gantt-chart">
+            {gantt_bars_html}
+        </div>
+    </div>
+</div>
+"""
+
+GANTT_BAR_TEMPLATE = """
+<div class="gantt-row">
+    <div class="gantt-label" title="{full_label}">{label}</div>
+    <div class="gantt-track">
+        <div class="gantt-bar depth-{depth_class}"
+             style="left: {left_pct}%; width: {width_pct}%;"
+             data-agent-key="{agent_key}"
+             onclick="switchTab('{agent_key}')"
+             title="{full_label}: {duration} ({iteration_count} iters)">
+            <span class="gantt-bar-text">{bar_text}</span>
+        </div>
+    </div>
+</div>
+"""
+
+TAB_NAV_TEMPLATE = """
+<div class="tab-nav">
+    {tab_buttons_html}
+</div>
+"""
+
+TAB_BUTTON_TEMPLATE = """
+<button class="tab-btn{active_class}" data-tab="{agent_key}" onclick="switchTab('{agent_key}')">
+    {label} <span class="tab-badge">{iteration_count}</span>
+</button>
+"""
+
+TAB_CONTENT_WRAPPER_TEMPLATE = """
+<div class="tab-panels">
+    {tab_panels_html}
+</div>
+"""
+
+TAB_PANEL_TEMPLATE = """
+<div class="tab-panel{active_class}" id="tab-{agent_key}" data-agent-key="{agent_key}">
+    {timing_list_html}
+    {iterations_html}
 </div>
 """
