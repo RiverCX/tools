@@ -374,6 +374,18 @@ class HTMLReporter:
         for timing in chain.iteration_timings:
             resp = response_map.get(timing.iteration_num)
             content = resp.content if resp else ""
+            # content 为空时 fallback 到 reasoning 或 tool_calls
+            if not content and resp:
+                if resp.reasoning_content:
+                    content = resp.reasoning_content
+                elif resp.tool_calls:
+                    names = []
+                    for tc in resp.tool_calls:
+                        name = tc.get("name", "") or tc.get("function", {}).get("name", "")
+                        if name:
+                            names.append(name)
+                    if names:
+                        content = f"[Tool Calls: {', '.join(names)}]"
             content_preview = content[:80] + "..." if len(content) > 80 else content
             if not content_preview:
                 content_preview = "(no content)"
