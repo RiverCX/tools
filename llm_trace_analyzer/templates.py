@@ -380,6 +380,7 @@ SESSION_DETAIL_TEMPLATE = """
 .gantt-seg {{ height: 100%; min-width: 1px; }}
 .gantt-seg-llm {{ background: #4a90d9; }}
 .gantt-seg-tool {{ background: #f57c00; }}
+.gantt-seg-wait {{ background: #bdbdbd; }}
 .gantt-bar.depth-parent {{ background: #e3f2fd; }}
 .gantt-bar.depth-0 {{ background: #f3e5f5; }}
 .gantt-bar.depth-1 {{ background: #ede7f6; }}

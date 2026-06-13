@@ -229,16 +229,41 @@ class HTMLReporter:
             # 生成迭代分段
             agent_span = max(agent_end - agent_start, 0.001)
             segments: List[str] = []
-            for t in timings:
-                llm_w = max((t.llm_call_duration / agent_span) * 100, 0.3)
-                tool_w = max((t.tool_processing_duration / agent_span) * 100, 0)
-                segments.append(
-                    f'<div class="gantt-seg gantt-seg-llm" style="width:{llm_w:.2f}%"></div>'
-                )
-                if tool_w > 0.1:
+
+            if depth == 0:
+                # Parent: 用真实时间戳构建连续 bar，填充 subAgent 等待期间
+                events: List[Tuple[float, float, str]] = []
+                for t in timings:
+                    req_ts = t.request_timestamp
+                    resp_ts = t.response_timestamp
+                    events.append((req_ts, resp_ts, "llm"))
+
+                # 排序 LLM 事件，在相邻 LLM 之间插入 tool/wait 段
+                sorted_llm = sorted(events, key=lambda e: e[0])
+                for i in range(len(sorted_llm) - 1):
+                    curr_resp = sorted_llm[i][1]  # 当前 response 时间
+                    next_req = sorted_llm[i + 1][0]  # 下一个 request 时间
+                    if next_req > curr_resp + 0.5:
+                        events.append((curr_resp, next_req, "wait"))
+
+                # 按时间排序渲染
+                all_events = sorted(events, key=lambda e: e[0])
+                for start, end, etype in all_events:
+                    w = max(((end - start) / agent_span) * 100, 0.3)
+                    seg_class = f"gantt-seg gantt-seg-{etype}"
+                    segments.append(f'<div class="{seg_class}" style="width:{w:.2f}%"></div>')
+            else:
+                # SubAgent: 只显示 LLM 和 Tool 段
+                for t in timings:
+                    llm_w = max((t.llm_call_duration / agent_span) * 100, 0.3)
+                    tool_w = max((t.tool_processing_duration / agent_span) * 100, 0)
                     segments.append(
-                        f'<div class="gantt-seg gantt-seg-tool" style="width:{tool_w:.2f}%"></div>'
+                        f'<div class="gantt-seg gantt-seg-llm" style="width:{llm_w:.2f}%"></div>'
                     )
+                    if tool_w > 0.1:
+                        segments.append(
+                            f'<div class="gantt-seg gantt-seg-tool" style="width:{tool_w:.2f}%"></div>'
+                        )
 
             depth_class = "parent" if depth == 0 else str(min(depth - 1, 2))
             time_range = f"{self._format_timestamp(agent_start)} - {self._format_timestamp(agent_end)}"
