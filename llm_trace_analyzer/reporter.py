@@ -238,8 +238,7 @@ class HTMLReporter:
                 intervals.append((t.request_timestamp, t.response_timestamp, "llm"))
                 if t.tool_processing_duration > 0:
                     tool_end = min(t.response_timestamp + t.tool_processing_duration, win_end)
-                    if tool_end > t.response_timestamp + 0.5:
-                        intervals.append((t.response_timestamp, tool_end, "tool"))
+                    intervals.append((t.response_timestamp, tool_end, "tool"))
 
             # 按开始时间排序，直接渲染（不填充 wait）
             intervals.sort(key=lambda x: x[0])
@@ -251,7 +250,8 @@ class HTMLReporter:
 
             segments: List[str] = []
             for start, end, seg_type in intervals:
-                w = max(((end - start) / agent_span) * 100, 0.3)
+                min_w = 0.8 if seg_type == "tool" else 0.3
+                w = max(((end - start) / agent_span) * 100, min_w)
                 segments.append(f'<div class="gantt-seg gantt-seg-{seg_type}" style="width:{w:.2f}%"></div>')
 
             rows.append(self._gantt_row_html(
@@ -288,7 +288,7 @@ class HTMLReporter:
             segments: List[str] = []
             for t in sa_timings:
                 llm_w = max((t.llm_call_duration / agent_span) * 100, 0.3)
-                tool_w = max((t.tool_processing_duration / agent_span) * 100, 0)
+                tool_w = max((t.tool_processing_duration / agent_span) * 100, 0.8) if t.tool_processing_duration > 0 else 0
                 segments.append(f'<div class="gantt-seg gantt-seg-llm" style="width:{llm_w:.2f}%"></div>')
                 if tool_w > 0.1:
                     segments.append(f'<div class="gantt-seg gantt-seg-tool" style="width:{tool_w:.2f}%"></div>')
