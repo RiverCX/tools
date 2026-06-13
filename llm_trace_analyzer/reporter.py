@@ -268,7 +268,8 @@ class HTMLReporter:
                         tool_w = max((t.tool_processing_duration / a_span) * 100, 0.8)
                         segments.append(f'<div class="gantt-seg gantt-seg-tool" style="width:{tool_w:.2f}%"></div>')
 
-                tooltip = self._tooltip_data(agent_timings, agent_label)
+                agent_resps = [r for r in chain.responses if r.session_id == sid]
+                tooltip = self._tooltip_data(agent_timings, agent_label, responses=agent_resps)
                 iter_count = len(agent_timings)
 
                 rows.append(self._gantt_row_html(
@@ -342,6 +343,13 @@ class HTMLReporter:
                 llm_pct = (timing.llm_call_duration / iter_total * 100) if iter_total > 0 else 0
                 tool_pct = (timing.tool_processing_duration / iter_total * 100) if iter_total > 0 else 0
 
+                # 字数统计
+                reasoning_chars = len(resp.reasoning_content or "") if resp else 0
+                content_chars = len(resp.content or "") if resp else 0
+                tc_chars = 0
+                if resp and resp.tool_calls:
+                    tc_chars = len(json.dumps(resp.tool_calls, ensure_ascii=False))
+
                 detail_tooltip = {
                     "agent-name": f"{agent_label} #{local_num}",
                     "iter-count": "1",
@@ -353,6 +361,9 @@ class HTMLReporter:
                     "time-range": f"{self._format_timestamp(iter_start)} - {self._format_timestamp(bar_end)}",
                     "full-content": full_content,
                     "tool-calls": full_tool_calls,
+                    "reasoning-chars": str(reasoning_chars),
+                    "content-chars": str(content_chars),
+                    "tool-calls-chars": str(tc_chars),
                 }
 
                 detail_rows.append(self._gantt_row_html(
@@ -452,7 +463,8 @@ class HTMLReporter:
             f'</div></div></div>'
         )
 
-    def _tooltip_data(self, timings, label: str, start_ts: float = 0, end_ts: float = 0) -> Dict:
+    def _tooltip_data(self, timings, label: str, start_ts: float = 0, end_ts: float = 0,
+                      responses: List = None) -> Dict:
         llm = sum(t.llm_call_duration for t in timings)
         tool = sum(t.tool_processing_duration for t in timings)
         total = llm + tool
@@ -462,6 +474,19 @@ class HTMLReporter:
             start_ts = timings[0].request_timestamp
         if not end_ts and timings:
             end_ts = max(t.response_timestamp for t in timings)
+
+        # 计算字数统计
+        reasoning_chars = 0
+        content_chars = 0
+        tool_calls_chars = 0
+        if responses:
+            for r in responses:
+                reasoning_chars += len(r.reasoning_content or "")
+                content_chars += len(r.content or "")
+                if r.tool_calls:
+                    import json as _json
+                    tool_calls_chars += len(_json.dumps(r.tool_calls, ensure_ascii=False))
+
         return {
             "agent-name": label,
             "iter-count": str(len(timings)),
@@ -471,6 +496,9 @@ class HTMLReporter:
             "llm-pct": f"{llm_pct:.1f}",
             "tool-pct": f"{tool_pct:.1f}",
             "time-range": f"{self._format_timestamp(start_ts)} - {self._format_timestamp(end_ts)}",
+            "reasoning-chars": str(reasoning_chars),
+            "content-chars": str(content_chars),
+            "tool-calls-chars": str(tool_calls_chars),
         }
 
     def _generate_timing_list_html(self, chain: LLMChain) -> str:

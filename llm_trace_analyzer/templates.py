@@ -151,8 +151,9 @@ INDEX_TEMPLATE = """
         </table>
     </div>
     <script>
-        (function() {{
+        document.addEventListener('DOMContentLoaded', function() {{
             const btn = document.getElementById('goTopBtn');
+            if (!btn) return;
             window.addEventListener('scroll', function() {{
                 if (window.scrollY > 300) {{
                     btn.classList.add('visible');
@@ -163,7 +164,7 @@ INDEX_TEMPLATE = """
             btn.addEventListener('click', function() {{
                 window.scrollTo({{ top: 0, behavior: 'smooth' }});
             }});
-        }})();
+        }});
     </script>
     <button id="goTopBtn" class="go-top-btn" title="Go to Top">&#8593;</button>
 </body>
@@ -438,8 +439,9 @@ SESSION_DETAIL_TEMPLATE = """
                 setTimeout(() => block.style.boxShadow = '', 2000);
             }});
         }}
-        (function() {{
+        document.addEventListener('DOMContentLoaded', function() {{
             const btn = document.getElementById('goTopBtn');
+            if (!btn) return;
             window.addEventListener('scroll', function() {{
                 if (window.scrollY > 300) {{
                     btn.classList.add('visible');
@@ -450,16 +452,23 @@ SESSION_DETAIL_TEMPLATE = """
             btn.addEventListener('click', function() {{
                 window.scrollTo({{ top: 0, behavior: 'smooth' }});
             }});
-        }})();
+        }});
         function showGanttTooltip(event, bar) {{
             const tt = document.getElementById('ganttTooltip');
             const name = bar.dataset.agentName;
             const fullContent = bar.dataset.fullContent;
             const toolCalls = bar.dataset.toolCalls;
+            const reasoningChars = bar.dataset.reasoningChars || '0';
+            const contentChars = bar.dataset.contentChars || '0';
+            const toolCallsChars = bar.dataset.toolCallsChars || '0';
+            const charsHtml = `
+                <div class="tt-row"><span class="tt-label">Reasoning</span><span class="tt-value">${{reasoningChars}} chars</span></div>
+                <div class="tt-row"><span class="tt-label">Content</span><span class="tt-value">${{contentChars}} chars</span></div>
+                <div class="tt-row"><span class="tt-label">Tool Calls</span><span class="tt-value">${{toolCallsChars}} chars</span></div>
+            `;
 
             if (fullContent !== undefined && fullContent !== '') {{
-                // Detail row: show timing stats + tools + content
-                const iters = bar.dataset.iterCount;
+                // Detail row: show timing stats + chars + tools + content
                 const llm = bar.dataset.llm;
                 const tool = bar.dataset.tool;
                 const total = bar.dataset.total;
@@ -476,11 +485,12 @@ SESSION_DETAIL_TEMPLATE = """
                     <div class="tt-row"><span class="tt-label">Tool</span><span class="tt-value">${{tool}}</span></div>
                     <div class="tt-row"><span class="tt-label">Total</span><span class="tt-value">${{total}}</span></div>
                     <div class="tt-row"><span class="tt-label">Time</span><span class="tt-value">${{timeRange}}</span></div>
+                    ${{charsHtml}}
                     ${{tcHtml}}
                     <div class="tt-content">${{fullContent}}</div>
                 `;
             }} else {{
-                // Agent-level bar: show timing stats
+                // Agent-level bar: show timing stats + chars
                 const iters = bar.dataset.iterCount;
                 const llm = bar.dataset.llm;
                 const tool = bar.dataset.tool;
@@ -496,6 +506,7 @@ SESSION_DETAIL_TEMPLATE = """
                     <div class="tt-row"><span class="tt-label">Tool</span><span class="tt-value">${{tool}}</span></div>
                     <div class="tt-row"><span class="tt-label">Total</span><span class="tt-value">${{total}}</span></div>
                     <div class="tt-row"><span class="tt-label">Time</span><span class="tt-value">${{timeRange}}</span></div>
+                    ${{charsHtml}}
                 `;
             }}
             tt.classList.add('visible');
