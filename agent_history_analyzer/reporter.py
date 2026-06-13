@@ -162,7 +162,7 @@ class HTMLReporter:
         self._flow_item_index += 1
         tool_name = flow_item.name or "unknown"
         arguments = flow_item.arguments or "{}"
-        timestamp_str = datetime.fromtimestamp(flow_item.timestamp).strftime("%H:%M:%S")
+        timestamp_str = datetime.fromtimestamp(flow_item.timestamp).strftime("%m-%d %H:%M:%S")
         time_html = format_time_display(flow_item.duration)
         params_html = self._format_tool_params(tool_name, arguments)
 
@@ -188,7 +188,7 @@ class HTMLReporter:
 
     def _render_compression(self, flow_item: FlowItem, request: RequestData) -> str:
         """渲染压缩事件"""
-        timestamp_str = datetime.fromtimestamp(flow_item.timestamp).strftime("%H:%M:%S")
+        timestamp_str = datetime.fromtimestamp(flow_item.timestamp).strftime("%m-%d %H:%M:%S")
 
         prev_end_time = request.start_time
         for i, item in enumerate(request.execution_flow):

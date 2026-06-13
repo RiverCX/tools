@@ -127,6 +127,7 @@ class TestCLIMain:
 
             # 模拟命令行参数
             import sys
+
             old_args = sys.argv
             sys.argv = ["lt", str(SAMPLE_LOG), "-o", str(output_path), "-v"]
 
@@ -147,6 +148,7 @@ class TestCLIMain:
             output_path = Path(tmpdir) / "report"
 
             import sys
+
             old_args = sys.argv
             sys.argv = [
                 "lt",
@@ -169,6 +171,7 @@ class TestCLIMain:
     def test_main_no_log_file(self):
         """测试无日志文件时的错误处理"""
         import sys
+
         old_args = sys.argv
         sys.argv = ["lt"]
 

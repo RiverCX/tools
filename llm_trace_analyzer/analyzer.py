@@ -83,7 +83,9 @@ class ChainAnalyzer:
                         if root_parent not in self._parent_to_task_ids:
                             self._parent_to_task_ids[root_parent] = []
                         self._parent_to_task_ids[root_parent].append((session_id, 0))
-                        self._task_id_to_parent[session_id] = full_parent  # 记录直接 parent（完整 session_id）
+                        self._task_id_to_parent[session_id] = (
+                            full_parent  # 记录直接 parent（完整 session_id）
+                        )
                     else:
                         # parent 不在已知 session 中，直接添加
                         if parent_session not in self._parent_to_task_ids:
@@ -301,7 +303,7 @@ class ChainAnalyzer:
                 timing.llm_call_duration = resp.timestamp - req.timestamp
 
             # 计算 tool_processing_duration（查找下一个同 session 的请求）
-            is_first_of_session = (session_first_iteration.get(timing.session_id) == i)
+            is_first_of_session = session_first_iteration.get(timing.session_id) == i
 
             if resp and i < len(sorted_items) - 1:
                 # 找下一个同 session 的请求
@@ -316,7 +318,7 @@ class ChainAnalyzer:
                         break
 
             # 判断是否为最后一次迭代
-            timing.is_last_iteration = (timing.tool_processing_duration == 0)
+            timing.is_last_iteration = timing.tool_processing_duration == 0
 
             timings.append(timing)
 

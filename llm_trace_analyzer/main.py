@@ -75,7 +75,9 @@ class LLMTraceAnalyzer:
         # session_id 包含父 session ID，如 <parent>_subagent_<task_id> 或 <parent>_fork_agent_<task_id>
         for t in traces:
             sid = t.get("session_id", "")
-            if sid.startswith(parent_session + "_subagent_") or sid.startswith(parent_session + "_fork_agent_"):
+            if sid.startswith(parent_session + "_subagent_") or sid.startswith(
+                parent_session + "_fork_agent_"
+            ):
                 if sid not in collected and sid != parent_session:
                     collected.add(sid)
                     # 递归处理 subAgent 可能调用的其他 subAgent

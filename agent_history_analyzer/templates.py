@@ -462,13 +462,15 @@ def get_top_duration_section(top_steps: List) -> str:
             else ("badge-orange" if step.duration > 2 else "badge-blue")
         )
         flow_index = step.flow_item_index
-        rows.append(f"""<tr onclick="scrollToCard(document.getElementById('flow-item-{flow_index}'))" style="cursor: pointer;">
+        rows.append(
+            f"""<tr onclick="scrollToCard(document.getElementById('flow-item-{flow_index}'))" style="cursor: pointer;">
             <td><strong>#{i}</strong></td>
             <td><span class='badge {badge_class}'>{step.duration:.2f}s</span></td>
             <td><span class='badge badge-green'>{step.type}</span></td>
             <td>{escape_html(step.summary)}</td>
             <td style="font-size: 0.85em; color: #666;">{escape_html(step.user_input)}</td>
-        </tr>""")
+        </tr>"""
+        )
 
     rows_joined = NEWLINE.join(rows)
     return f"""

@@ -17,6 +17,7 @@ class TestLogLoader:
 
         assert len(traces) > 0
         from tests.conftest import EXPECTED_TRACE_COUNT
+
         assert len(traces) == EXPECTED_TRACE_COUNT
 
     def test_trace_fields(self):

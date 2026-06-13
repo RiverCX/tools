@@ -263,7 +263,9 @@ class HTMLReporter:
                 prev_request = prev_requests_by_session.get(session_id)
                 # 判断是否是子 Agent 的第一次请求（继承父 Agent context，不应显示 Tool Call Results）
                 is_subagent_first_request = request.source == "subagent" and prev_request is None
-                request_html = self._generate_request_html(request, prev_request, global_tool_name_map, is_subagent_first_request)
+                request_html = self._generate_request_html(
+                    request, prev_request, global_tool_name_map, is_subagent_first_request
+                )
                 if request.source == "subagent":
                     depth = self._calc_depth_from_label(request.source_label)
                 # 内部请求不更新 prev_request，避免影响 Tool Call Results 计算
@@ -311,13 +313,19 @@ class HTMLReporter:
         return "\n".join(iterations_parts)
 
     def _calc_depth_from_label(self, label: str) -> int:
-        """从 source_label 计算嵌套深度，如 'Parent → Sub[xxx] → Fork[xxx]' """
+        """从 source_label 计算嵌套深度，如 'Parent → Sub[xxx] → Fork[xxx]'"""
         if not label:
             return 0
         arrows = label.split(" → ")
         return len(arrows) - 1
 
-    def _generate_request_html(self, request: LLMRequest, prev_request: Optional[LLMRequest] = None, global_tool_name_map: Dict[str, str] = None, is_subagent_first_request: bool = False) -> str:
+    def _generate_request_html(
+        self,
+        request: LLMRequest,
+        prev_request: Optional[LLMRequest] = None,
+        global_tool_name_map: Dict[str, str] = None,
+        is_subagent_first_request: bool = False,
+    ) -> str:
         system_prompt_html = ""
         system_prompt_chars = 0
         other_messages = []
@@ -360,14 +368,18 @@ class HTMLReporter:
         )
 
         # 生成 Tool Call Results HTML
-        new_message_html = self._generate_new_message_html(other_messages, prev_request, global_tool_name_map or {}, is_subagent_first_request)
+        new_message_html = self._generate_new_message_html(
+            other_messages, prev_request, global_tool_name_map or {}, is_subagent_first_request
+        )
 
         request_chars = system_prompt_chars + messages_chars + tools_chars
 
         # 生成内部请求标记
         internal_label = ""
         if request.is_internal:
-            internal_label = '<span class="label" style="background: #ff9800; color: white;">Internal</span>'
+            internal_label = (
+                '<span class="label" style="background: #ff9800; color: white;">Internal</span>'
+            )
 
         return REQUEST_TEMPLATE.format(
             timestamp=timestamp_str,
@@ -392,7 +404,13 @@ class HTMLReporter:
                 items.append(TOOL_NAME_ITEM_TEMPLATE.format(name=name))
         return "\n".join(items)
 
-    def _generate_new_message_html(self, current_messages: List, prev_request: Optional[LLMRequest], global_tool_name_map: Dict[str, str], is_subagent_first_request: bool = False) -> str:
+    def _generate_new_message_html(
+        self,
+        current_messages: List,
+        prev_request: Optional[LLMRequest],
+        global_tool_name_map: Dict[str, str],
+        is_subagent_first_request: bool = False,
+    ) -> str:
         """生成 ToolResult 部分 HTML，显示与上一个迭代相比新增的工具调用结果"""
         # 只显示 tool 类型的 messages（工具调用结果）
         # assistant 是上一轮 RESPONSE 的输出，user 是用户输入，不应算作 REQUEST 的新增
@@ -512,7 +530,9 @@ class HTMLReporter:
             tool_calls_html=tool_calls_html,
         )
 
-    def _make_json_block(self, obj, tool_count: int = 0, char_count: int = 0, tool_names: str = "") -> str:
+    def _make_json_block(
+        self, obj, tool_count: int = 0, char_count: int = 0, tool_names: str = ""
+    ) -> str:
         json_str = json.dumps(obj, indent=2, ensure_ascii=False)
         if char_count == 0:
             char_count = len(json_str)
@@ -533,7 +553,7 @@ class HTMLReporter:
         if timestamp == 0:
             return "N/A"
         dt = datetime.fromtimestamp(timestamp)
-        return dt.strftime("%H:%M:%S")
+        return dt.strftime("%m-%d %H:%M:%S")
 
     def _format_duration(self, seconds: float) -> str:
         """格式化时长显示"""
@@ -566,8 +586,8 @@ class HTMLReporter:
                     "function": {
                         "name": tool.get("name"),
                         "description": tool.get("description", ""),
-                        "parameters": tool.get("parameters", {})
-                    }
+                        "parameters": tool.get("parameters", {}),
+                    },
                 }
                 # 保留其他可能的字段如 strict
                 if "strict" in tool:

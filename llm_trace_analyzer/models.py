@@ -7,6 +7,7 @@ from typing import Any, Dict, List
 @dataclass
 class IterationTiming:
     """单个迭代的时间统计"""
+
     iteration_num: int
     session_id: str
     request_timestamp: float = 0.0

@@ -52,11 +52,21 @@ class TraceParser:
             iter_traces = by_iteration[iteration]
 
             # 分离不同事件类型
-            request_traces = [t for t in iter_traces
-                if t["event"] in (TraceEventType.STREAM_REQUEST.value, TraceEventType.INVOKE_REQUEST.value)]
-            output_traces = [t for t in iter_traces
-                if t["event"] in (TraceEventType.STREAM_OUTPUT.value, TraceEventType.INVOKE_OUTPUT.value)]
-            reasoning_traces = [t for t in iter_traces if t["event"] == TraceEventType.REASONING_DELTA.value]
+            request_traces = [
+                t
+                for t in iter_traces
+                if t["event"]
+                in (TraceEventType.STREAM_REQUEST.value, TraceEventType.INVOKE_REQUEST.value)
+            ]
+            output_traces = [
+                t
+                for t in iter_traces
+                if t["event"]
+                in (TraceEventType.STREAM_OUTPUT.value, TraceEventType.INVOKE_OUTPUT.value)
+            ]
+            reasoning_traces = [
+                t for t in iter_traces if t["event"] == TraceEventType.REASONING_DELTA.value
+            ]
 
             # 按 stream_request/stream_output 时间戳聚类（阈值 1 秒）
             request_groups = self._group_by_timestamp(request_traces, threshold=1.0)
@@ -74,15 +84,21 @@ class TraceParser:
             for sub_iteration in range(num_iterations):
                 actual_iteration = iteration * 10 + sub_iteration
 
-                req_traces = request_groups[sub_iteration] if sub_iteration < len(request_groups) else []
-                out_traces = output_groups[sub_iteration] if sub_iteration < len(output_groups) else []
+                req_traces = (
+                    request_groups[sub_iteration] if sub_iteration < len(request_groups) else []
+                )
+                out_traces = (
+                    output_groups[sub_iteration] if sub_iteration < len(output_groups) else []
+                )
 
                 # 计算当前 output group 的中心时间
                 if out_traces:
                     out_center = sum(t["timestamp"] for t in out_traces) / len(out_traces)
                 elif req_traces:
                     # 如果没有 output，用 request 的结束时间作为参考
-                    out_center = max(t["timestamp"] for t in req_traces) + 30  # 预期 output 在 request 后约 30 秒
+                    out_center = (
+                        max(t["timestamp"] for t in req_traces) + 30
+                    )  # 预期 output 在 request 后约 30 秒
                 else:
                     out_center = 0
 
@@ -263,9 +279,7 @@ class TraceParser:
         except json.JSONDecodeError:
             return ""
 
-    def _group_by_seq_reset(
-        self, traces: List[Dict[str, Any]]
-    ) -> List[List[Dict[str, Any]]]:
+    def _group_by_seq_reset(self, traces: List[Dict[str, Any]]) -> List[List[Dict[str, Any]]]:
         """按 reasoning_seq 重置分组：seq 从高变低说明是新的一组"""
         if not traces:
             return []

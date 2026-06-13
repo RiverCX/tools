@@ -228,9 +228,7 @@ class TestEdgeCases:
         """测试格式错误的 trace 行"""
         with tempfile.TemporaryDirectory() as tmpdir:
             malformed_log = Path(tmpdir) / "malformed.log"
-            malformed_log.write_text(
-                "2024-05-01 12:00:00 [DEBUG] [LLM_IO_TRACE] incomplete line\n"
-            )
+            malformed_log.write_text("2024-05-01 12:00:00 [DEBUG] [LLM_IO_TRACE] incomplete line\n")
 
             loader = LogLoader(str(malformed_log))
             traces = loader.load()
