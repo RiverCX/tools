@@ -252,11 +252,11 @@ SESSION_DETAIL_TEMPLATE = """
 .gantt-row-wrapper {{ margin-bottom: 2px; }}
 .gantt-expand-btn {{ background: none; border: none; cursor: pointer; font-size: 9px; color: #888; padding: 0 6px 0 0; line-height: 1; }}
 .gantt-expand-btn:hover {{ color: #4a90d9; }}
-.gantt-expand-content {{ padding: 2px 0 6px 20px; background: #fafafa; border-left: 2px solid #e0e0e0; margin-left: 8px; }}
-.gantt-expand-content .gantt-row {{ height: 20px; }}
-.gantt-expand-content .gantt-label {{ font-size: 11px; width: 50px; }}
-.gantt-expand-content .gantt-track {{ height: 14px; }}
-.gantt-expand-content .gantt-bar {{ height: 12px; top: 1px; }}
+.gantt-expand-content {{ padding: 2px 0 6px 0; border-left: 2px solid #e0e0e0; margin-left: 8px; }}
+.gantt-expand-content .gantt-row {{ height: 22px; }}
+.gantt-expand-content .gantt-label {{ font-size: 11px; width: 170px; padding-left: 12px; }}
+.gantt-expand-content .gantt-track {{ height: 16px; }}
+.gantt-expand-content .gantt-bar {{ height: 14px; top: 1px; }}
 /* Gantt Tooltip */
 .gantt-tooltip {{ position: fixed; pointer-events: none; background: #1a1a2e; color: white; padding: 12px 16px; border-radius: 8px; font-size: 13px; line-height: 1.8; z-index: 2000; box-shadow: 0 4px 16px rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.15s; max-width: 300px; }}
 .gantt-tooltip.visible {{ opacity: 1; }}
