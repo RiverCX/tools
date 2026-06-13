@@ -265,6 +265,9 @@ INDEX_TEMPLATE = """
         a:hover {{ text-decoration: underline; }}
         .model {{ color: #666; font-size: 13px; }}
         .time {{ color: #999; font-size: 12px; }}
+.go-top-btn {{ position: fixed; bottom: 30px; right: 30px; width: 44px; height: 44px; background: #4a90d9; color: white; border: none; border-radius: 50%; cursor: pointer; font-size: 20px; line-height: 44px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.2); opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s, background 0.2s; z-index: 1000; }}
+.go-top-btn:hover {{ background: #3a7bc8; }}
+.go-top-btn.visible {{ opacity: 1; visibility: visible; }}
     </style>
 </head>
 <body>
@@ -288,6 +291,22 @@ INDEX_TEMPLATE = """
             {session_rows}
         </table>
     </div>
+    <script>
+        (function() {{
+            const btn = document.getElementById('goTopBtn');
+            window.addEventListener('scroll', function() {{
+                if (window.scrollY > 300) {{
+                    btn.classList.add('visible');
+                }} else {{
+                    btn.classList.remove('visible');
+                }}
+            }});
+            btn.addEventListener('click', function() {{
+                window.scrollTo({{ top: 0, behavior: 'smooth' }});
+            }});
+        }})();
+    </script>
+    <button id="goTopBtn" class="go-top-btn" title="Go to Top">&#8593;</button>
 </body>
 </html>
 """
@@ -382,6 +401,9 @@ SESSION_DETAIL_TEMPLATE = """
 .timing-item-time.total {{ color: #4a90d9; font-weight: bold; }}
 .timing-item-content {{ flex: 1; font-size: 13px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
 .timing-item-content:hover {{ overflow: visible; white-space: normal; }}
+.go-top-btn {{ position: fixed; bottom: 30px; right: 30px; width: 44px; height: 44px; background: #4a90d9; color: white; border: none; border-radius: 50%; cursor: pointer; font-size: 20px; line-height: 44px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.2); opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s, background 0.2s; z-index: 1000; }}
+.go-top-btn:hover {{ background: #3a7bc8; }}
+.go-top-btn.visible {{ opacity: 1; visibility: visible; }}
     </style>
 </head>
 <body>
@@ -472,7 +494,21 @@ SESSION_DETAIL_TEMPLATE = """
                 setTimeout(() => iterationBlock.style.boxShadow = '', 2000);
             }}
         }}
+        (function() {{
+            const btn = document.getElementById('goTopBtn');
+            window.addEventListener('scroll', function() {{
+                if (window.scrollY > 300) {{
+                    btn.classList.add('visible');
+                }} else {{
+                    btn.classList.remove('visible');
+                }}
+            }});
+            btn.addEventListener('click', function() {{
+                window.scrollTo({{ top: 0, behavior: 'smooth' }});
+            }});
+        }})();
     </script>
+    <button id="goTopBtn" class="go-top-btn" title="Go to Top">&#8593;</button>
 </body>
 </html>
 """

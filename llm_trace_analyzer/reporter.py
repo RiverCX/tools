@@ -145,13 +145,26 @@ class HTMLReporter:
             return ""
 
         # 构建 iteration_num -> response 的映射，获取 content
-        response_map: Dict[int, LLMResponse] = {}
+        # 使用与 _compute_iteration_timings 相同的 (session_id, iteration) 配对逻辑
+        paired_items: Dict[Tuple[str, int], Dict] = {}
+        for req in chain.requests:
+            key = (req.session_id, req.iteration)
+            if key not in paired_items:
+                paired_items[key] = {"timestamp": req.timestamp, "response": None}
         for resp in chain.responses:
-            # 按 timestamp 找对应的 iteration_num
-            for timing in chain.iteration_timings:
-                if abs(resp.timestamp - timing.response_timestamp) < 1.0:
-                    response_map[timing.iteration_num] = resp
-                    break
+            key = (resp.session_id, resp.iteration)
+            if key not in paired_items:
+                paired_items[key] = {"timestamp": resp.timestamp, "response": resp}
+            else:
+                paired_items[key]["response"] = resp
+                if paired_items[key]["timestamp"] == 0:
+                    paired_items[key]["timestamp"] = resp.timestamp
+
+        sorted_items = sorted(paired_items.values(), key=lambda x: x["timestamp"])
+
+        response_map: Dict[int, Optional[LLMResponse]] = {}
+        for i, item in enumerate(sorted_items):
+            response_map[i + 1] = item["response"]
 
         timing_items: List[str] = []
         for timing in chain.iteration_timings:

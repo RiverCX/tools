@@ -306,15 +306,12 @@ class ChainAnalyzer:
             is_first_of_session = session_first_iteration.get(timing.session_id) == i
 
             if resp and i < len(sorted_items) - 1:
-                # 找下一个同 session 的请求
+                # 找下一个同 session 的请求（跳过其他 session 的交错请求）
                 for j in range(i + 1, len(sorted_items)):
                     next_item = sorted_items[j]
                     next_req = next_item["request"]
                     if next_req and next_req.session_id == timing.session_id:
                         timing.tool_processing_duration = next_req.timestamp - resp.timestamp
-                        break
-                    # 遇到不同 session 的请求，停止查找
-                    if next_req and next_req.session_id != timing.session_id:
                         break
 
             # 判断是否为最后一次迭代
