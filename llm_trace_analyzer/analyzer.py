@@ -311,7 +311,14 @@ class ChainAnalyzer:
                     next_item = sorted_items[j]
                     next_req = next_item["request"]
                     if next_req and next_req.session_id == timing.session_id:
-                        timing.tool_processing_duration = next_req.timestamp - resp.timestamp
+                        gap = next_req.timestamp - resp.timestamp
+                        # 如果 response 包含 spawn_subagent，排除 subAgent 运行时间
+                        if self._has_spawn_subagent(resp):
+                            # 只计算框架处理时间（response 到 subAgent 启动）
+                            spawn_overhead = self._get_spawn_overhead(resp.timestamp, timing.session_id)
+                            timing.tool_processing_duration = min(spawn_overhead, gap)
+                        else:
+                            timing.tool_processing_duration = gap
                         break
 
             # 判断是否为最后一次迭代
@@ -320,6 +327,35 @@ class ChainAnalyzer:
             timings.append(timing)
 
         return timings
+
+    def _has_spawn_subagent(self, resp: LLMResponse) -> bool:
+        """检查 response 是否包含 spawn_subagent 类工具调用"""
+        if not resp.tool_calls:
+            return False
+        for tc in resp.tool_calls:
+            name = tc.get("name", "") or tc.get("function", {}).get("name", "")
+            if "subagent" in name.lower() or "spawn" in name.lower() or "agent" in name.lower():
+                return True
+        return False
+
+    def _get_spawn_overhead(self, response_timestamp: float, parent_session_id: str) -> float:
+        """计算 spawn subagent 的框架处理时间（response 到第一个 subagent 启动）"""
+        children = self._parent_to_task_ids.get(parent_session_id, [])
+        if not children:
+            return 0.0
+
+        # 找到 response 之后启动的 subagent 中最早的时间
+        min_start = float("inf")
+        for child_session_id, _ in children:
+            child_reqs = self.requests.get(child_session_id, [])
+            if child_reqs:
+                child_start = child_reqs[0].timestamp
+                if child_start > response_timestamp - 1 and child_start < min_start:
+                    min_start = child_start
+
+        if min_start == float("inf"):
+            return 0.0
+        return max(min_start - response_timestamp, 0.0)
 
     def _compute_subagent_depth(self, task_id: str) -> Tuple[int, List[str], str]:
         """计算 subAgent 的嵌套深度和调用路径"""
