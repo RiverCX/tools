@@ -389,22 +389,46 @@ class HTMLReporter:
                 "agent_label": sa_label_map.get(sid, self._short_session_id(sid)),
             }
 
-        # 按 session 分组 timing，并行 subAgent 连续显示
+        # 按 session 分组 timing
         timings_by_session: Dict[str, List] = {}
         for timing in chain.iteration_timings:
             if timing.session_id not in timings_by_session:
                 timings_by_session[timing.session_id] = []
             timings_by_session[timing.session_id].append(timing)
 
-        # 确定输出顺序：Main 在前，subAgent 按 session_id 分组连续
-        ordered_timings: List = []
-        # Main 的 timing 保持原序
-        if chain.session_id in timings_by_session:
-            ordered_timings.extend(timings_by_session[chain.session_id])
-        # SubAgent 按 session 分组，组内保持原序
-        for sid in sorted(timings_by_session.keys()):
-            if sid != chain.session_id:
-                ordered_timings.extend(timings_by_session[sid])
+        # 找到每个 subagent 被哪个 parent 迭代 spawn（通过 start_time 匹配 parent response）
+        parent_timings = timings_by_session.get(chain.session_id, [])
+        parent_resp_times = sorted(
+            [(t.iteration_num, t.response_timestamp) for t in parent_timings],
+            key=lambda x: x[1]
+        )
+
+        def find_spawn_parent(start_time: float) -> int:
+            """找到 spawn 该 subagent 的 parent 迭代的 global_num"""
+            result = 0
+            for pnum, pts in parent_resp_times:
+                if pts <= start_time + 1.0:
+                    result = pnum
+                else:
+                    break
+            return result
+
+        # 构建排序 key：(spawn_parent_global_num, is_subagent, session_id, local_num)
+        # 这样 subagent 会紧跟在 spawn 它的 parent 迭代之后，同 session 连续
+        sort_entries: List[Tuple] = []
+        for timing in chain.iteration_timings:
+            data = global_data.get(timing.iteration_num, {})
+            local_num = data.get("local_num", timing.iteration_num)
+            if timing.session_id == chain.session_id:
+                # Main: 按 global_num 排序
+                sort_entries.append((timing.iteration_num, 0, "", local_num, timing))
+            else:
+                # SubAgent: 按 spawn parent 排序，同 parent 的按 session_id 分组
+                spawn_parent = find_spawn_parent(timing.request_timestamp)
+                sort_entries.append((spawn_parent, 1, timing.session_id, local_num, timing))
+
+        sort_entries.sort(key=lambda x: (x[0], x[1], x[2], x[3]))
+        ordered_timings = [entry[4] for entry in sort_entries]
 
         timing_items: List[str] = []
         for timing in ordered_timings:
