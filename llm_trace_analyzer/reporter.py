@@ -173,12 +173,13 @@ class HTMLReporter:
             f.write(html_content)
 
     def _generate_gantt_html(self, chain: LLMChain) -> str:
-        """生成完整调用链 Gantt 时间线面板"""
+        """生成交替式 Gantt 时间线：Parent 行与 SubAgent 行交替显示"""
         if not chain.iteration_timings:
             return ""
 
         session_start = chain.start_time
-        total_span = max(chain.end_time - chain.start_time, 0.001)
+        session_end = chain.end_time
+        total_span = max(session_end - session_start, 0.001)
 
         # 按 session_id 分组 timings
         timings_by_session: Dict[str, List] = {}
@@ -187,26 +188,110 @@ class HTMLReporter:
                 timings_by_session[t.session_id] = []
             timings_by_session[t.session_id].append(t)
 
-        # 构建 agent 树
-        sa_map = {sa.session_id: sa for sa in chain.subagents}
+        parent_timings = timings_by_session.get(chain.session_id, [])
+        if not parent_timings:
+            return ""
+
+        # 构建 parent → children 映射
         children_map: Dict[str, List] = {}
         for sa in chain.subagents:
-            parent = sa.parent_session_id
-            if parent not in children_map:
-                children_map[parent] = []
-            children_map[parent].append(sa)
-        for parent in children_map:
-            children_map[parent].sort(key=lambda s: s.start_time)
+            p = sa.parent_session_id
+            if p not in children_map:
+                children_map[p] = []
+            children_map[p].append(sa)
+        for p in children_map:
+            children_map[p].sort(key=lambda s: s.start_time)
 
-        # DFS 渲染树
-        bars: List[str] = []
+        # 找到 parent 的 spawn 点（parent response 后有 child 开始）
+        spawn_groups: List[Tuple[float, List]] = []
+        direct_children = children_map.get(chain.session_id, [])
+        if direct_children:
+            # 按 spawn 时间分组（1s 内的视为同一组）
+            current_group = [direct_children[0]]
+            for sa in direct_children[1:]:
+                if sa.start_time - current_group[-1].start_time < 1.0:
+                    current_group.append(sa)
+                else:
+                    spawn_groups.append((current_group[0].start_time, current_group))
+                    current_group = [sa]
+            spawn_groups.append((current_group[0].start_time, current_group))
 
-        def render_agent(session_id: str, depth: int, is_last: List[bool], label: str):
-            timings = timings_by_session.get(session_id, [])
-            if not timings:
+        # 构建交替时间线
+        rows: List[str] = []
+
+        def render_parent_window(win_start: float, win_end: float, label_suffix: str = ""):
+            """渲染一个 Parent 时间窗口行"""
+            window_timings = [
+                t for t in parent_timings
+                if t.request_timestamp >= win_start - 0.5 and t.response_timestamp <= win_end + 0.5
+            ]
+            if not window_timings:
+                # 没有 parent 迭代，只显示 wait 段
+                bar_left = ((win_start - session_start) / total_span) * 100
+                bar_width = max(((win_end - win_start) / total_span) * 100, 0.5)
+                rows.append(self._gantt_row_html(
+                    label=f"Parent {label_suffix}",
+                    tree_prefix="",
+                    depth=0,
+                    left_pct=bar_left,
+                    width_pct=bar_width,
+                    segments_html=f'<div class="gantt-seg gantt-seg-wait" style="width:100%"></div>',
+                    first_global=parent_timings[0].iteration_num,
+                    tooltip_data=self._parent_tooltip_data(parent_timings, win_start, win_end),
+                ))
                 return
 
-            # 构建树缩进前缀
+            first_global = window_timings[0].iteration_num
+            agent_start = window_timings[0].request_timestamp
+            agent_end = max(t.response_timestamp for t in window_timings)
+            bar_left = ((min(win_start, agent_start) - session_start) / total_span) * 100
+            bar_right = max(win_end, agent_end)
+            bar_width = max(((bar_right - bar_left) / total_span) * 100, 0.5)
+            agent_span = max(bar_right - bar_left, 0.001)
+
+            # 构建段：LLM + wait（填充到窗口边界）
+            events: List[Tuple[float, float, str]] = []
+            for t in window_timings:
+                events.append((t.request_timestamp, t.response_timestamp, "llm"))
+
+            sorted_llm = sorted(events, key=lambda e: e[0])
+            # 在 LLM 之间加 wait 段
+            for i in range(len(sorted_llm) - 1):
+                gap_start = sorted_llm[i][1]
+                gap_end = sorted_llm[i + 1][0]
+                if gap_end > gap_start + 0.5:
+                    events.append((gap_start, gap_end, "wait"))
+
+            # 在窗口首尾加 wait 段
+            if sorted_llm[0][0] > win_start + 0.5:
+                events.append((win_start, sorted_llm[0][0], "wait"))
+            last_end = max(e[1] for e in sorted_llm)
+            if win_end > last_end + 0.5:
+                events.append((last_end, win_end, "wait"))
+
+            all_events = sorted(events, key=lambda e: e[0])
+            segments: List[str] = []
+            for start, end, etype in all_events:
+                w = max(((end - start) / agent_span) * 100, 0.3)
+                segments.append(f'<div class="gantt-seg gantt-seg-{etype}" style="width:{w:.2f}%"></div>')
+
+            rows.append(self._gantt_row_html(
+                label=f"Parent {label_suffix}",
+                tree_prefix="",
+                depth=0,
+                left_pct=bar_left,
+                width_pct=bar_width,
+                segments_html="".join(segments),
+                first_global=first_global,
+                tooltip_data=self._parent_tooltip_data(window_timings, win_start, win_end),
+            ))
+
+        def render_subagent_row(sa, depth: int, is_last: List[bool]):
+            """渲染一个 SubAgent 行"""
+            sa_timings = timings_by_session.get(sa.session_id, [])
+            if not sa_timings:
+                return
+
             prefix_parts = []
             for i, last in enumerate(is_last[:-1]):
                 prefix_parts.append("    " if last else "│   ")
@@ -214,107 +299,118 @@ class HTMLReporter:
                 prefix_parts.append("└─ " if is_last[-1] else "├─ ")
             tree_prefix = "".join(prefix_parts)
 
-            # 计算统计数据
-            llm_total = sum(t.llm_call_duration for t in timings)
-            tool_total = sum(t.tool_processing_duration for t in timings)
-            total = llm_total + tool_total
-            first_global = timings[0].iteration_num
-            agent_start = timings[0].request_timestamp
-            agent_end = max(t.response_timestamp for t in timings)
-
-            # 位置
-            left_pct = ((agent_start - session_start) / total_span) * 100
-            width_pct = max(((agent_end - agent_start) / total_span) * 100, 0.5)
-
-            # 生成迭代分段
+            label = sa.chain_path[-1] if sa.chain_path else self._short_session_id(sa.session_id)
+            agent_start = sa.start_time
+            agent_end = sa.end_time
             agent_span = max(agent_end - agent_start, 0.001)
+            bar_left = ((agent_start - session_start) / total_span) * 100
+            bar_width = max(((agent_end - agent_start) / total_span) * 100, 0.5)
+
             segments: List[str] = []
+            for t in sa_timings:
+                llm_w = max((t.llm_call_duration / agent_span) * 100, 0.3)
+                tool_w = max((t.tool_processing_duration / agent_span) * 100, 0)
+                segments.append(f'<div class="gantt-seg gantt-seg-llm" style="width:{llm_w:.2f}%"></div>')
+                if tool_w > 0.1:
+                    segments.append(f'<div class="gantt-seg gantt-seg-tool" style="width:{tool_w:.2f}%"></div>')
 
-            if depth == 0:
-                # Parent: 用真实时间戳构建连续 bar，填充 subAgent 等待期间
-                events: List[Tuple[float, float, str]] = []
-                for t in timings:
-                    req_ts = t.request_timestamp
-                    resp_ts = t.response_timestamp
-                    events.append((req_ts, resp_ts, "llm"))
+            rows.append(self._gantt_row_html(
+                label=label,
+                tree_prefix=tree_prefix,
+                depth=depth,
+                left_pct=bar_left,
+                width_pct=bar_width,
+                segments_html="".join(segments),
+                first_global=sa_timings[0].iteration_num,
+                tooltip_data=self._agent_tooltip_data(sa_timings, label),
+            ))
 
-                # 排序 LLM 事件，在相邻 LLM 之间插入 tool/wait 段
-                sorted_llm = sorted(events, key=lambda e: e[0])
-                for i in range(len(sorted_llm) - 1):
-                    curr_resp = sorted_llm[i][1]  # 当前 response 时间
-                    next_req = sorted_llm[i + 1][0]  # 下一个 request 时间
-                    if next_req > curr_resp + 0.5:
-                        events.append((curr_resp, next_req, "wait"))
+            # 递归渲染子 agent
+            children = children_map.get(sa.session_id, [])
+            for i, child in enumerate(children):
+                render_subagent_row(child, depth + 1, is_last + [i == len(children) - 1])
 
-                # 按时间排序渲染
-                all_events = sorted(events, key=lambda e: e[0])
-                for start, end, etype in all_events:
-                    w = max(((end - start) / agent_span) * 100, 0.3)
-                    seg_class = f"gantt-seg gantt-seg-{etype}"
-                    segments.append(f'<div class="{seg_class}" style="width:{w:.2f}%"></div>')
-            else:
-                # SubAgent: 只显示 LLM 和 Tool 段
-                for t in timings:
-                    llm_w = max((t.llm_call_duration / agent_span) * 100, 0.3)
-                    tool_w = max((t.tool_processing_duration / agent_span) * 100, 0)
-                    segments.append(
-                        f'<div class="gantt-seg gantt-seg-llm" style="width:{llm_w:.2f}%"></div>'
-                    )
-                    if tool_w > 0.1:
-                        segments.append(
-                            f'<div class="gantt-seg gantt-seg-tool" style="width:{tool_w:.2f}%"></div>'
-                        )
+        # 构建交替序列
+        if not spawn_groups:
+            # 无 subagent，只显示一个 Parent 行
+            render_parent_window(session_start, session_end)
+        else:
+            # Parent 窗口 1：session_start → 第一个 spawn
+            render_parent_window(session_start, spawn_groups[0][0], "")
 
-            depth_class = "parent" if depth == 0 else str(min(depth - 1, 2))
-            time_range = f"{self._format_timestamp(agent_start)} - {self._format_timestamp(agent_end)}"
+            for gi, (spawn_time, group) in enumerate(spawn_groups):
+                # SubAgent 行
+                for i, sa in enumerate(group):
+                    render_subagent_row(sa, 1, [i == len(group) - 1])
 
-            # LLM/Tool 占比条
-            llm_pct = (llm_total / total * 100) if total > 0 else 0
-            tool_pct = (tool_total / total * 100) if total > 0 else 0
-
-            bars.append(
-                f'<div class="gantt-row">'
-                f'<div class="gantt-label" style="padding-left:{depth * 12}px">'
-                f'<span class="gantt-tree">{html.escape(tree_prefix)}</span>'
-                f'{html.escape(label)}'
-                f'</div>'
-                f'<div class="gantt-track">'
-                f'<div class="gantt-bar depth-{depth_class}" '
-                f'style="left:{left_pct:.1f}%;width:{width_pct:.1f}%" '
-                f'data-first-global="{first_global}" '
-                f'data-agent-name="{html.escape(label)}" '
-                f'data-iter-count="{len(timings)}" '
-                f'data-llm="{self._format_duration(llm_total)}" '
-                f'data-tool="{self._format_duration(tool_total)}" '
-                f'data-total="{self._format_duration(total)}" '
-                f'data-llm-pct="{llm_pct:.1f}" '
-                f'data-tool-pct="{tool_pct:.1f}" '
-                f'data-time-range="{html.escape(time_range)}" '
-                f'onclick="jumpToIteration({first_global})" '
-                f'onmouseenter="showGanttTooltip(event, this)" '
-                f'onmousemove="moveGanttTooltip(event)" '
-                f'onmouseleave="hideGanttTooltip()">'
-                f'{"".join(segments)}'
-                f'</div>'
-                f'</div>'
-                f'</div>'
-            )
-
-            # 递归渲染子 Agent
-            children = children_map.get(session_id, [])
-            for i, child_sa in enumerate(children):
-                child_label = child_sa.chain_path[-1] if child_sa.chain_path else self._short_session_id(child_sa.session_id)
-                child_is_last = is_last + [i == len(children) - 1]
-                render_agent(child_sa.session_id, depth + 1, child_is_last, child_label)
-
-        # 从 Parent 开始渲染
-        render_agent(chain.session_id, 0, [], "Parent")
+                # 下一个 Parent 窗口
+                window_start = max(sa.end_time for sa in group)
+                window_end = spawn_groups[gi + 1][0] if gi + 1 < len(spawn_groups) else session_end
+                if window_end > window_start + 0.5:
+                    render_parent_window(window_start, window_end, "")
 
         return GANTT_PANEL_TEMPLATE.format(
-            agent_count=len(bars),
-            total_duration=self._format_duration(chain.end_time - chain.start_time),
-            gantt_bars_html="\n".join(bars),
+            agent_count=len(rows),
+            total_duration=self._format_duration(session_end - session_start),
+            gantt_bars_html="\n".join(rows),
         )
+
+    def _gantt_row_html(self, label, tree_prefix, depth, left_pct, width_pct, segments_html, first_global, tooltip_data) -> str:
+        depth_class = "parent" if depth == 0 else str(min(depth - 1, 2))
+        data_attrs = " ".join(f'data-{k}="{html.escape(str(v))}"' for k, v in tooltip_data.items())
+        return (
+            f'<div class="gantt-row">'
+            f'<div class="gantt-label" style="padding-left:{depth * 16}px">'
+            f'<span class="gantt-tree">{html.escape(tree_prefix)}</span>'
+            f'{html.escape(label)}'
+            f'</div>'
+            f'<div class="gantt-track">'
+            f'<div class="gantt-bar depth-{depth_class}" '
+            f'style="left:{left_pct:.1f}%;width:{width_pct:.1f}%" '
+            f'data-first-global="{first_global}" {data_attrs} '
+            f'onclick="jumpToIteration({first_global})" '
+            f'onmouseenter="showGanttTooltip(event, this)" '
+            f'onmousemove="moveGanttTooltip(event)" '
+            f'onmouseleave="hideGanttTooltip()">'
+            f'{segments_html}'
+            f'</div></div></div>'
+        )
+
+    def _parent_tooltip_data(self, timings, win_start, win_end):
+        llm = sum(t.llm_call_duration for t in timings)
+        tool = sum(t.tool_processing_duration for t in timings)
+        total = llm + tool
+        llm_pct = (llm / total * 100) if total > 0 else 0
+        tool_pct = (tool / total * 100) if total > 0 else 0
+        return {
+            "agent-name": "Parent",
+            "iter-count": str(len(timings)),
+            "llm": self._format_duration(llm),
+            "tool": self._format_duration(tool),
+            "total": self._format_duration(total),
+            "llm-pct": f"{llm_pct:.1f}",
+            "tool-pct": f"{tool_pct:.1f}",
+            "time-range": f"{self._format_timestamp(win_start)} - {self._format_timestamp(win_end)}",
+        }
+
+    def _agent_tooltip_data(self, timings, label):
+        llm = sum(t.llm_call_duration for t in timings)
+        tool = sum(t.tool_processing_duration for t in timings)
+        total = llm + tool
+        llm_pct = (llm / total * 100) if total > 0 else 0
+        tool_pct = (tool / total * 100) if total > 0 else 0
+        start = timings[0].request_timestamp
+        end = max(t.response_timestamp for t in timings)
+        return {
+            "agent-name": label,
+            "iter-count": str(len(timings)),
+            "llm": self._format_duration(llm),
+            "tool": self._format_duration(tool),
+            "total": self._format_duration(total),
+            "llm-pct": f"{llm_pct:.1f}",
+            "tool-pct": f"{tool_pct:.1f}",
+            "time-range": f"{self._format_timestamp(start)} - {self._format_timestamp(end)}",
+        }
 
     def _generate_timing_list_html(self, chain: LLMChain) -> str:
         """生成全局 timing 面板"""

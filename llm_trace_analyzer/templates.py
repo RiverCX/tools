@@ -714,11 +714,11 @@ GANTT_PANEL_TEMPLATE = """
 AGENT_BLOCK_TEMPLATE = """
 <div class="agent-block depth-{depth_class}">
     <div class="collapsible" onclick="toggleCollapsible(this)">
-        <span class="toggle-icon">&#9654;</span>
+        <span class="toggle-icon rotated">&#9654;</span>
         <span class="label subagent">{label}</span>
         <span class="char-count">{iteration_count} iters | {duration}</span>
     </div>
-    <div class="collapsible-content">
+    <div class="collapsible-content expanded">
         {content_html}
     </div>
 </div>
