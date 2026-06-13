@@ -146,6 +146,10 @@ class HTMLReporter:
         # Render main flow
         iterations_html = self._render_agent_flow(chain.session_id, chain)
 
+        # Render Gantt timeline and timing list
+        gantt_html = self._generate_gantt_html(chain) if chain.subagents else ""
+        timing_list_html = self._generate_timing_list_html(chain)
+
         num_iters = len(chain.iteration_timings)
         avg_llm = chain.total_llm_duration_seconds / num_iters if num_iters > 0 else 0
 
@@ -160,12 +164,121 @@ class HTMLReporter:
             total_llm_duration=self._format_duration(chain.total_llm_duration_seconds),
             total_tool_duration=self._format_duration(chain.total_tool_duration_seconds),
             avg_llm_per_iter=self._format_duration(avg_llm),
-            gantt_html="",
+            gantt_html=gantt_html,
+            timing_list_html=timing_list_html,
             iterations_html=iterations_html,
         )
 
         with open(detail_file, "w", encoding="utf-8") as f:
             f.write(html_content)
+
+    def _generate_gantt_html(self, chain: LLMChain) -> str:
+        """生成 Gantt 时间线面板"""
+        # 收集所有 agent (parent + subagents) 的时间范围
+        agents = []
+        parent_timings = [t for t in chain.iteration_timings if t.session_id == chain.session_id]
+        if parent_timings:
+            agents.append({
+                "label": "Parent",
+                "start": parent_timings[0].request_timestamp,
+                "end": parent_timings[-1].response_timestamp,
+                "depth_class": "parent",
+                "iter_count": len(parent_timings),
+            })
+
+        for sa in sorted(chain.subagents, key=lambda s: (s.depth, s.start_time)):
+            label = sa.chain_path[-1] if sa.chain_path else self._short_session_id(sa.session_id)
+            depth_class = str(min(sa.depth, 2))
+            sa_timings = [t for t in chain.iteration_timings if t.session_id == sa.session_id]
+            iter_count = len(sa_timings)
+            agents.append({
+                "label": label,
+                "start": sa.start_time,
+                "end": sa.end_time,
+                "depth_class": depth_class,
+                "iter_count": iter_count,
+            })
+
+        session_start = chain.start_time
+        total_span = max(chain.end_time - chain.start_time, 0.001)
+
+        bars: List[str] = []
+        for agent in agents:
+            left_pct = ((agent["start"] - session_start) / total_span) * 100
+            width_pct = max(((agent["end"] - agent["start"]) / total_span) * 100, 0.5)
+            duration = self._format_duration(agent["end"] - agent["start"])
+            bars.append(GANTT_BAR_TEMPLATE.format(
+                label=agent["label"],
+                full_label=agent["label"],
+                agent_key=agent["label"],
+                left_pct=f"{left_pct:.1f}",
+                width_pct=f"{width_pct:.1f}",
+                depth_class=agent["depth_class"],
+                bar_text=f'{agent["iter_count"]} iters',
+                duration=duration,
+                iteration_count=agent["iter_count"],
+            ))
+
+        return GANTT_PANEL_TEMPLATE.format(
+            agent_count=len(agents),
+            total_duration=self._format_duration(chain.end_time - chain.start_time),
+            gantt_bars_html="\n".join(bars),
+        )
+
+    def _generate_timing_list_html(self, chain: LLMChain) -> str:
+        """生成全局 timing 面板"""
+        if not chain.iteration_timings:
+            return ""
+
+        # 构建 response_map（使用配对逻辑）
+        paired_items: Dict[Tuple[str, int], Dict] = {}
+        for req in chain.requests:
+            key = (req.session_id, req.iteration)
+            if key not in paired_items:
+                paired_items[key] = {"timestamp": req.timestamp, "response": None}
+        for resp in chain.responses:
+            key = (resp.session_id, resp.iteration)
+            if key not in paired_items:
+                paired_items[key] = {"timestamp": resp.timestamp, "response": resp}
+            else:
+                paired_items[key]["response"] = resp
+                if paired_items[key]["timestamp"] == 0:
+                    paired_items[key]["timestamp"] = resp.timestamp
+
+        sorted_items = sorted(paired_items.values(), key=lambda x: x["timestamp"])
+        response_map: Dict[int, Optional[LLMResponse]] = {}
+        for i, item in enumerate(sorted_items):
+            response_map[i + 1] = item["response"]
+
+        timing_items: List[str] = []
+        for timing in chain.iteration_timings:
+            resp = response_map.get(timing.iteration_num)
+            content = resp.content if resp else ""
+            content_preview = content[:80] + "..." if len(content) > 80 else content
+            if not content_preview:
+                content_preview = "(no content)"
+
+            total_seconds = timing.llm_call_duration + timing.tool_processing_duration
+
+            item_html = TIMING_ITEM_TEMPLATE.format(
+                local_num=timing.iteration_num,
+                global_num=timing.iteration_num,
+                llm_seconds=timing.llm_call_duration,
+                tool_seconds=timing.tool_processing_duration,
+                total_seconds=total_seconds,
+                llm_duration=self._format_duration(timing.llm_call_duration),
+                tool_duration=self._format_duration(timing.tool_processing_duration),
+                total_duration=self._format_duration(total_seconds),
+                content_preview=html.escape(content_preview),
+                content_full=html.escape(content),
+            )
+            timing_items.append(item_html)
+
+        return TIMING_LIST_TEMPLATE.format(
+            total_iterations=len(chain.iteration_timings),
+            timing_list_id="timing-list-global",
+            timing_items_html="\n".join(timing_items),
+        )
 
     def _get_parent_session_id(self, session_id: str, chain: LLMChain) -> str:
         """从 session_id 推断直接 parent 的 session_id"""

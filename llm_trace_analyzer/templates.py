@@ -440,6 +440,7 @@ SESSION_DETAIL_TEMPLATE = """
             <div class="meta">Duration: {session_duration} | LLM: {total_llm_duration} | Tool: {total_tool_duration} | Avg LLM: {avg_llm_per_iter}</div>
         </div>
         {gantt_html}
+        {timing_list_html}
         {iterations_html}
     </div>
     <script>
@@ -503,8 +504,8 @@ SESSION_DETAIL_TEMPLATE = """
             }});
         }}
         function sortTimingList(sortType, clickedBtn) {{
-            const panel = clickedBtn.closest('.tab-panel');
-            const list = panel ? panel.querySelector('.timing-list') : document.querySelector('.timing-list');
+            const timingPanel = clickedBtn.closest('.timing-panel');
+            const list = timingPanel ? timingPanel.querySelector('.timing-list') : document.querySelector('.timing-list');
             if (!list) return;
             const controls = clickedBtn.closest('.timing-controls');
             if (controls) {{
@@ -526,16 +527,26 @@ SESSION_DETAIL_TEMPLATE = """
         function jumpToIteration(globalNum) {{
             const block = document.querySelector(`.iteration-block[data-global-iteration="${{globalNum}}"]`);
             if (!block) return;
-            const panel = block.closest('.tab-panel');
-            if (panel) {{
-                const agentKey = panel.dataset.agentKey;
-                switchTab(agentKey);
-                requestAnimationFrame(() => {{
-                    block.scrollIntoView({{ behavior: 'smooth', block: 'start' }});
-                    block.style.boxShadow = '0 0 0 3px #4a90d9';
-                    setTimeout(() => block.style.boxShadow = '', 2000);
-                }});
+            // 展开所有包含该 block 的折叠区域
+            let el = block.parentElement;
+            while (el) {{
+                if (el.classList.contains('collapsible-content') && !el.classList.contains('expanded')) {{
+                    el.classList.add('expanded');
+                    const icon = el.previousElementSibling?.querySelector('.toggle-icon');
+                    if (icon) icon.classList.add('rotated');
+                }}
+                if (el.classList.contains('tab-panel') && !el.classList.contains('active')) {{
+                    const agentKey = el.dataset.agentKey;
+                    if (agentKey) switchTab(agentKey);
+                }}
+                el = el.parentElement;
             }}
+            requestAnimationFrame(() => {{
+                block.scrollIntoView({{ behavior: 'smooth', block: 'start' }});
+                block.style.boxShadow = '0 0 0 3px #4a90d9';
+                setTimeout(() => block.style.boxShadow = '', 2000);
+            }});
+        }}
         }}
         (function() {{
             const btn = document.getElementById('goTopBtn');
