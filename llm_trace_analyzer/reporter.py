@@ -244,10 +244,11 @@ class HTMLReporter:
             first_global = window_timings[0].iteration_num
             agent_start = window_timings[0].request_timestamp
             agent_end = max(t.response_timestamp for t in window_timings)
-            bar_left = ((min(win_start, agent_start) - session_start) / total_span) * 100
-            bar_right = max(win_end, agent_end)
-            bar_width = max(((bar_right - bar_left) / total_span) * 100, 0.5)
-            agent_span = max(bar_right - bar_left, 0.001)
+            bar_left_ts = min(win_start, agent_start)
+            bar_right_ts = max(win_end, agent_end)
+            bar_left = ((bar_left_ts - session_start) / total_span) * 100
+            bar_width = max(((bar_right_ts - bar_left_ts) / total_span) * 100, 0.5)
+            agent_span = max(bar_right_ts - bar_left_ts, 0.001)
 
             # 构建段：LLM + wait（填充到窗口边界）
             events: List[Tuple[float, float, str]] = []
