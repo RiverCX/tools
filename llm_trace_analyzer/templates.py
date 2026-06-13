@@ -232,7 +232,8 @@ SESSION_DETAIL_TEMPLATE = """
 .gantt-legend {{ display: flex; gap: 16px; padding: 4px 0 8px; font-size: 12px; color: #666; }}
 .gantt-legend-item {{ display: flex; align-items: center; gap: 4px; }}
 .gantt-legend-color {{ display: inline-block; width: 14px; height: 10px; border-radius: 2px; }}
-.gantt-chart {{ max-height: 400px; overflow-y: auto; padding-top: 5px; }}
+.gantt-chart {{ max-height: 500px; overflow-y: auto; padding-top: 5px; }}
+.gantt-agent-header {{ font-size: 12px; font-weight: bold; color: #4a90d9; padding: 8px 0 2px 4px; border-bottom: 1px solid #e8e8e8; margin-top: 4px; }}
 .gantt-row {{ display: flex; align-items: center; height: 28px; margin-bottom: 2px; }}
 .gantt-label {{ width: 180px; flex-shrink: 0; font-size: 12px; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 8px; font-family: 'Consolas', 'Monaco', monospace; }}
 .gantt-tree {{ color: #aaa; }}
