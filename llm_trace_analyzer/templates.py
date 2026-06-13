@@ -710,7 +710,6 @@ GANTT_PANEL_TEMPLATE = """
         <div class="gantt-legend">
             <span class="gantt-legend-item"><span class="gantt-legend-color" style="background:#4a90d9"></span>LLM Call</span>
             <span class="gantt-legend-item"><span class="gantt-legend-color" style="background:#f57c00"></span>Tool Execution</span>
-            <span class="gantt-legend-item"><span class="gantt-legend-color" style="background:#bdbdbd"></span>Waiting</span>
         </div>
         <div class="gantt-chart">
             {gantt_bars_html}

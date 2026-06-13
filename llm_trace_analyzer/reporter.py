@@ -226,31 +226,12 @@ class HTMLReporter:
                 if t.request_timestamp >= win_start - 0.5 and t.response_timestamp <= win_end + 0.5
             ]
             if not window_timings:
-                # 没有 parent 迭代，只显示 wait 段
-                bar_left = ((win_start - session_start) / total_span) * 100
-                bar_width = max(((win_end - win_start) / total_span) * 100, 0.5)
-                rows.append(self._gantt_row_html(
-                    label=f"Main {label_suffix}",
-                    tree_prefix="",
-                    depth=0,
-                    left_pct=bar_left,
-                    width_pct=bar_width,
-                    segments_html=f'<div class="gantt-seg gantt-seg-wait" style="width:100%"></div>',
-                    first_global=parent_timings[0].iteration_num,
-                    tooltip_data=self._parent_tooltip_data(parent_timings, win_start, win_end),
-                ))
+                # 没有 Main 迭代，跳过该行
                 return
 
             first_global = window_timings[0].iteration_num
-            agent_start = window_timings[0].request_timestamp
-            agent_end = max(t.response_timestamp for t in window_timings)
-            bar_left_ts = min(win_start, agent_start)
-            bar_right_ts = max(win_end, agent_end)
-            bar_left = ((bar_left_ts - session_start) / total_span) * 100
-            bar_width = max(((bar_right_ts - bar_left_ts) / total_span) * 100, 0.5)
-            agent_span = max(bar_right_ts - bar_left_ts, 0.001)
 
-            # 构建段：LLM（蓝）+ Tool（橙）+ Wait（灰）
+            # 构建段：LLM（蓝）+ Tool（橙），Main 不需要 Waiting（灰）
             # 收集所有活动区间
             intervals: List[Tuple[float, float, str]] = []
             for t in window_timings:
@@ -260,37 +241,17 @@ class HTMLReporter:
                     if tool_end > t.response_timestamp + 0.5:
                         intervals.append((t.response_timestamp, tool_end, "tool"))
 
-            # 按开始时间排序
+            # 按开始时间排序，直接渲染（不填充 wait）
             intervals.sort(key=lambda x: x[0])
+            bar_start_ts = intervals[0][0] if intervals else win_start
+            bar_end_ts = max(i[1] for i in intervals) if intervals else win_end
+            agent_span = max(bar_end_ts - bar_start_ts, 0.001)
+            bar_left = ((bar_start_ts - session_start) / total_span) * 100
+            bar_width = max(((bar_end_ts - bar_start_ts) / total_span) * 100, 0.5)
 
-            # 收集所有时间边界点
-            points = set()
-            points.add(max(win_start, intervals[0][0]) if intervals else win_start)
-            points.add(min(win_end, max(i[1] for i in intervals)) if intervals else win_end)
-            for start, end, _ in intervals:
-                if start >= win_start:
-                    points.add(start)
-                if end <= win_end:
-                    points.add(end)
-
-            sorted_points = sorted(points)
             segments: List[str] = []
-            for i in range(len(sorted_points) - 1):
-                seg_start = sorted_points[i]
-                seg_end = sorted_points[i + 1]
-                if seg_end - seg_start < 0.1:
-                    continue
-                mid = (seg_start + seg_end) / 2
-                # 判断这个区间属于什么活动（优先级：llm > tool > wait）
-                seg_type = "wait"
-                for s, e, t in intervals:
-                    if s <= mid < e:
-                        if t == "llm":
-                            seg_type = "llm"
-                            break
-                        elif t == "tool" and seg_type != "llm":
-                            seg_type = "tool"
-                w = max(((seg_end - seg_start) / agent_span) * 100, 0.3)
+            for start, end, seg_type in intervals:
+                w = max(((end - start) / agent_span) * 100, 0.3)
                 segments.append(f'<div class="gantt-seg gantt-seg-{seg_type}" style="width:{w:.2f}%"></div>')
 
             rows.append(self._gantt_row_html(
