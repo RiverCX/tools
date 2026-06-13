@@ -389,8 +389,25 @@ class HTMLReporter:
                 "agent_label": sa_label_map.get(sid, self._short_session_id(sid)),
             }
 
-        timing_items: List[str] = []
+        # 按 session 分组 timing，并行 subAgent 连续显示
+        timings_by_session: Dict[str, List] = {}
         for timing in chain.iteration_timings:
+            if timing.session_id not in timings_by_session:
+                timings_by_session[timing.session_id] = []
+            timings_by_session[timing.session_id].append(timing)
+
+        # 确定输出顺序：Main 在前，subAgent 按 session_id 分组连续
+        ordered_timings: List = []
+        # Main 的 timing 保持原序
+        if chain.session_id in timings_by_session:
+            ordered_timings.extend(timings_by_session[chain.session_id])
+        # SubAgent 按 session 分组，组内保持原序
+        for sid in sorted(timings_by_session.keys()):
+            if sid != chain.session_id:
+                ordered_timings.extend(timings_by_session[sid])
+
+        timing_items: List[str] = []
+        for timing in ordered_timings:
             data = global_data.get(timing.iteration_num, {})
             resp = data.get("response")
             local_num = data.get("local_num", timing.iteration_num)
