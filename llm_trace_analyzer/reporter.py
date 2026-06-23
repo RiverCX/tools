@@ -229,7 +229,13 @@ class HTMLReporter:
             key=lambda t: t.iteration_num
         )
         # spawn 点：哪些 Main iteration 后面有 subAgent
-        spawn_points = sorted(subagent_groups.keys())
+        # 合并连续的 spawn_points（如 12,13 → 只保留 13），避免把连续 Main 迭代拆碎
+        raw_spawn_points = sorted(subagent_groups.keys())
+        spawn_points = []
+        for i, sp in enumerate(raw_spawn_points):
+            if i + 1 < len(raw_spawn_points) and raw_spawn_points[i + 1] == sp + 1:
+                continue  # 下一个是连续的，跳过当前
+            spawn_points.append(sp)
 
         # 构建 Main 分段
         main_segments: List[Tuple[str, List]] = []  # (segment_id, [timings])
@@ -251,14 +257,17 @@ class HTMLReporter:
         # 构建交替序列：main_seg, sub_group, main_seg, sub_group, ...
         # 用 (sort_key, type, id, timings) 表示每个条目
         timeline_entries: List[Tuple[int, str, str, List]] = []
+        prev_seg_end = 0
         for seg_id, seg_timings in main_segments:
             last_global = seg_timings[-1].iteration_num
             timeline_entries.append((last_global, 0, seg_id, seg_timings))
-            # 在这个 Main 段之后插入 spawn 的 subAgent 组
-            if last_global in subagent_groups:
-                for sub_sid in sorted(subagent_groups[last_global]):
-                    sub_t = [t for t in chain.iteration_timings if t.session_id == sub_sid]
-                    timeline_entries.append((last_global, 1, sub_sid, sub_t))
+            # 收集这个 Main 段之后所有 spawn 的 subAgent（包括被合并的 spawn point）
+            for sp in raw_spawn_points:
+                if prev_seg_end < sp <= last_global:
+                    for sub_sid in sorted(subagent_groups[sp]):
+                        sub_t = [t for t in chain.iteration_timings if t.session_id == sub_sid]
+                        timeline_entries.append((last_global, 1, sub_sid, sub_t))
+            prev_seg_end = last_global
 
         # 按 (sort_key, type) 排序：同 sort_key 下 Main(0) 在 SubAgent(1) 之前
         timeline_entries.sort(key=lambda x: (x[0], x[1]))
