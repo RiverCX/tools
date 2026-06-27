@@ -9,25 +9,72 @@ from typing import Any, Dict, List, Optional
 from .constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FILE_FALLBACK, DEFAULT_LOGS_DIR, TRACE_MARKER
 
 
+def find_rollover_files(log_path: Path) -> List[Path]:
+    """查找同一目录下的所有绕接日志文件
+
+    绕接文件命名模式: full_YYYYMMDD_HHMMSS.log
+    返回按文件名排序的文件列表（包含当前文件）
+    """
+    if not log_path.exists():
+        return [log_path]
+
+    parent_dir = log_path.parent
+
+    # 查找所有匹配 full_YYYYMMDD_HHMMSS.log 或 full.log 的文件
+    rollover_pattern = re.compile(r'^full_\d{8}_\d{6}\.log$')
+
+    all_files = []
+    for file_path in parent_dir.glob('full*.log'):
+        # 只匹配 full.log 或 full_YYYYMMDD_HHMMSS.log
+        if file_path.name == 'full.log' or rollover_pattern.match(file_path.name):
+            all_files.append(file_path)
+
+    # 按文件名排序（时间戳在文件名中，排序后即为时间顺序）
+    all_files.sort(key=lambda p: p.name)
+
+    return all_files if all_files else [log_path]
+
+
 class LogLoader:
-    def __init__(self, file_path: str):
+    def __init__(self, file_path: str, load_rollover: bool = True):
         self.file_path = Path(file_path)
+        self.load_rollover = load_rollover
 
     def load(self) -> List[Dict[str, Any]]:
-        try:
-            with open(self.file_path, encoding="utf-8") as f:
-                if self.file_path.suffix == ".json":
-                    return self._parse_json_file(f)
-                else:
-                    return self._parse_log_file(f)
-        except FileNotFoundError as e:
-            raise FileNotFoundError(f"日志文件不存在: {self.file_path}") from e
-        except UnicodeDecodeError:
-            with open(self.file_path, encoding="gbk") as f:
-                if self.file_path.suffix == ".json":
-                    return self._parse_json_file(f)
-                else:
-                    return self._parse_log_file(f)
+        # 查找所有绕接文件
+        if self.load_rollover:
+            log_files = find_rollover_files(self.file_path)
+            if len(log_files) > 1:
+                print(f"Found {len(log_files)} rollover log files, merging...")
+        else:
+            log_files = [self.file_path]
+
+        all_traces = []
+        for log_file in log_files:
+            try:
+                traces = self._load_single_file(log_file)
+                all_traces.extend(traces)
+            except FileNotFoundError as e:
+                if log_file == self.file_path:
+                    raise FileNotFoundError(f"日志文件不存在: {self.file_path}") from e
+                # 绕接文件不存在时跳过
+                continue
+            except UnicodeDecodeError:
+                traces = self._load_single_file(log_file, encoding='gbk')
+                all_traces.extend(traces)
+
+        # 按时间戳排序
+        all_traces.sort(key=lambda t: t.get('timestamp', 0))
+
+        return all_traces
+
+    def _load_single_file(self, file_path: Path, encoding: str = 'utf-8') -> List[Dict[str, Any]]:
+        """加载单个日志文件"""
+        with open(file_path, encoding=encoding) as f:
+            if file_path.suffix == ".json":
+                return self._parse_json_file(f)
+            else:
+                return self._parse_log_file(f)
 
     def _parse_json_file(self, f) -> List[Dict[str, Any]]:
         traces: List[Dict[str, Any]] = []
