@@ -148,6 +148,15 @@ class HTMLReporter:
         total_model_calls = total_iterations  # 每次迭代调用一次模型
         total_tool_calls = sum(len(resp.tool_calls) for resp in chain.responses if resp.tool_calls)
 
+        # Session 级别 token 统计
+        session_input_tokens = sum(resp.input_tokens for resp in chain.responses)
+        session_output_tokens = sum(resp.output_tokens for resp in chain.responses)
+        session_total_tokens = sum(resp.total_tokens for resp in chain.responses)
+        session_cache_tokens = sum(resp.cache_tokens for resp in chain.responses)
+        session_input_cost = sum(resp.input_cost for resp in chain.responses)
+        session_output_cost = sum(resp.output_cost for resp in chain.responses)
+        session_total_cost = sum(resp.total_cost for resp in chain.responses)
+
         html_content = SESSION_DETAIL_TEMPLATE.format(
             session_id_short=short_id,
             session_id=chain.session_id,
@@ -162,6 +171,11 @@ class HTMLReporter:
             total_iterations_count=total_iterations,
             total_model_calls=total_model_calls,
             total_tool_calls=total_tool_calls,
+            session_input_tokens=session_input_tokens,
+            session_output_tokens=session_output_tokens,
+            session_total_tokens=session_total_tokens,
+            session_cache_tokens=session_cache_tokens,
+            session_total_cost=session_total_cost,
             gantt_html=gantt_html,
             timing_list_html=timing_list_html,
             iterations_html=iterations_html,
@@ -785,8 +799,15 @@ class HTMLReporter:
                 copy_body_btn = '<button class="copy-btn" style="margin-left: 15px;" onclick="copyRequestBody(this)">Copy Body</button>'
 
             response_html = ""
+            # Iteration 级别 token 统计
+            iter_input_tokens = 0
+            iter_output_tokens = 0
+            iter_total_tokens = 0
             if resp:
                 response_html = self._generate_response_html(resp)
+                iter_input_tokens = resp.input_tokens
+                iter_output_tokens = resp.output_tokens
+                iter_total_tokens = resp.total_tokens
 
             iteration_html = ITERATION_DETAIL_TEMPLATE.format(
                 local_num=local_num,
@@ -795,6 +816,9 @@ class HTMLReporter:
                 depth_indicator="",
                 llm_duration=llm_duration_str,
                 tool_duration=tool_duration_str,
+                iter_input_tokens=iter_input_tokens,
+                iter_output_tokens=iter_output_tokens,
+                iter_total_tokens=iter_total_tokens,
                 copy_body_btn=copy_body_btn,
                 body_id=body_id,
                 body_json=body_json,
