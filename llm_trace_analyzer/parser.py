@@ -262,7 +262,10 @@ class TraceParser:
         content = body_dict.get("content", "")
         reasoning_content = body_dict.get("reasoning_content", "") or ""
 
-        if reasoning_merged:
+        # 仅当 output body 未携带 reasoning_content 时，才回退到 reasoning_delta 合并结果。
+        # body 中的 reasoning_content 是权威值；当 trace 共享 iteration=0 / 复用 request_id 时，
+        # reasoning_delta 按时间戳聚类会错配到其他调用，直接覆盖会导致显示异常且与 token 统计不符。
+        if not reasoning_content and reasoning_merged:
             reasoning_content = reasoning_merged
 
         tool_calls = body_dict.get("tool_calls", [])
