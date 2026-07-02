@@ -1319,8 +1319,8 @@ class HTMLReporter:
             parts.append("<h3>Session Comparison</h3>")
             parts.append(
                 '<table><tr>'
-                '<th>Session</th><th>Model</th><th>Tool Calls</th><th>Iters</th>'
-                '<th>LLM</th><th>Tool</th><th>Tokens</th>'
+                '<th>Session</th><th>Model</th><th style="text-align: right;">Tool Calls</th><th style="text-align: right;">Iters</th>'
+                '<th style="text-align: right;">LLM</th><th style="text-align: right;">Tool</th><th style="text-align: right;">Tokens</th>'
                 '</tr>'
             )
             for s in stats.session_stats:
@@ -1329,11 +1329,11 @@ class HTMLReporter:
                     f'<tr>'
                     f'<td>{short}</td>'
                     f'<td>{html.escape(s["model"])}</td>'
-                    f'<td>{s["tool_calls"]}</td>'
-                    f'<td>{s["iterations"]}</td>'
-                    f'<td>{self._format_duration(s["llm_time"])}</td>'
-                    f'<td>{self._format_duration(s["tool_time"])}</td>'
-                    f'<td>{s["tokens"]:,}</td>'
+                    f'<td style="text-align: right;">{s["tool_calls"]}</td>'
+                    f'<td style="text-align: right;">{s["iterations"]}</td>'
+                    f'<td style="text-align: right;">{self._format_duration(s["llm_time"])}</td>'
+                    f'<td style="text-align: right;">{self._format_duration(s["tool_time"])}</td>'
+                    f'<td style="text-align: right;">{s["tokens"]:,}</td>'
                     f'</tr>'
                 )
             parts.append('</table></div>')
