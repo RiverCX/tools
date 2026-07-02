@@ -10,6 +10,7 @@ from .models import (
     LLMResponse,
     Statistics,
     SubagentInfo,
+    SystemMetrics,
     pair_requests_responses,
 )
 
@@ -19,9 +20,11 @@ class ChainAnalyzer:
         self,
         requests: Dict[str, List[LLMRequest]],
         responses: Dict[str, List[LLMResponse]],
+        system_metrics: Optional[Dict[Tuple[str, int], List[SystemMetrics]]] = None,
     ):
         self.requests = requests
         self.responses = responses
+        self.system_metrics = system_metrics or {}
         self._all_sessions = set(requests.keys()) | set(responses.keys())
         self._parent_to_task_ids: Dict[str, List[Tuple[str, float]]] = {}
         self._task_id_to_parent: Dict[str, str] = {}
@@ -264,6 +267,12 @@ class ChainAnalyzer:
                 request_timestamp=req.timestamp if req else 0,
                 response_timestamp=resp.timestamp if resp else 0,
             )
+
+            # 添加系统资源指标
+            session_id = timing.session_id
+            iteration_key = (session_id, timing.iteration_num)
+            if iteration_key in self.system_metrics:
+                timing.system_metrics = self.system_metrics[iteration_key]
 
             # 计算 llm_call_duration
             if req and resp:

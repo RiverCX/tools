@@ -39,9 +39,9 @@ class LLMTraceAnalyzer:
             return False
 
         parser = TraceParser(traces)
-        requests, responses = parser.parse()
+        requests, responses, system_metrics = parser.parse()
 
-        analyzer = ChainAnalyzer(requests, responses)
+        analyzer = ChainAnalyzer(requests, responses, system_metrics)
         result = analyzer.analyze()
 
         if session_filter:

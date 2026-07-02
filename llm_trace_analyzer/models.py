@@ -5,6 +5,18 @@ from typing import Any, Dict, List, Optional, Tuple
 
 
 @dataclass
+class SystemMetrics:
+    """系统资源指标"""
+
+    phase: str = ""  # before_llm, after_llm, before_tool, after_tool
+    cpu_percent: float = 0.0
+    memory_rss_mb: float = 0.0
+    memory_vms_mb: float = 0.0
+    read_bytes: int = 0
+    write_bytes: int = 0
+
+
+@dataclass
 class IterationTiming:
     """单个迭代的时间统计"""
 
@@ -15,6 +27,8 @@ class IterationTiming:
     llm_call_duration: float = 0.0  # 模型调用时间（秒）
     tool_processing_duration: float = 0.0  # 工具调用+思考时间（秒）
     is_last_iteration: bool = False
+    # 系统资源指标
+    system_metrics: List[SystemMetrics] = field(default_factory=list)
 
 
 @dataclass

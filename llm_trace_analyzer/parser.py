@@ -6,27 +6,30 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
 from .constants import TraceEventType
-from .models import LLMRequest, LLMResponse
+from .models import LLMRequest, LLMResponse, SystemMetrics
 
 
 class TraceParser:
     def __init__(self, traces: List[Dict[str, Any]]):
         self.traces = traces
 
-    def parse(self) -> Tuple[Dict[str, List[LLMRequest]], Dict[str, List[LLMResponse]]]:
+    def parse(self) -> Tuple[Dict[str, List[LLMRequest]], Dict[str, List[LLMResponse]], Dict[Tuple[str, int], List[SystemMetrics]]]:
         grouped = self._group_traces()
 
         requests: Dict[str, List[LLMRequest]] = {}
         responses: Dict[str, List[LLMResponse]] = {}
+        system_metrics: Dict[Tuple[str, int], List[SystemMetrics]] = {}
 
         for session_id, session_traces in grouped.items():
-            reqs, resps = self._parse_session(session_id, session_traces)
+            reqs, resps, metrics = self._parse_session(session_id, session_traces)
             if reqs:
                 requests[session_id] = reqs
             if resps:
                 responses[session_id] = resps
+            if metrics:
+                system_metrics.update(metrics)
 
-        return requests, responses
+        return requests, responses, system_metrics
 
     def _group_traces(self) -> Dict[str, List[Dict[str, Any]]]:
         grouped: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
@@ -38,7 +41,7 @@ class TraceParser:
 
     def _parse_session(
         self, session_id: str, traces: List[Dict[str, Any]]
-    ) -> Tuple[List[LLMRequest], List[LLMResponse]]:
+    ) -> Tuple[List[LLMRequest], List[LLMResponse], Dict[Tuple[str, int], List[SystemMetrics]]]:
         # 按 iteration 和事件类型分组
         by_iteration: Dict[int, List[Dict[str, Any]]] = defaultdict(list)
 
@@ -48,6 +51,7 @@ class TraceParser:
 
         requests: List[LLMRequest] = []
         responses: List[LLMResponse] = []
+        system_metrics: Dict[Tuple[str, int], List[SystemMetrics]] = {}
 
         for iteration in sorted(by_iteration.keys()):
             iter_traces = by_iteration[iteration]
@@ -67,6 +71,9 @@ class TraceParser:
             ]
             reasoning_traces = [
                 t for t in iter_traces if t["event"] == TraceEventType.REASONING_DELTA.value
+            ]
+            system_metrics_traces = [
+                t for t in iter_traces if t["event"] == TraceEventType.SYSTEM_METRICS.value
             ]
 
             # 按 stream_request/stream_output 时间戳聚类（阈值 1 秒）
@@ -133,7 +140,30 @@ class TraceParser:
                     if resp:
                         responses.append(resp)
 
-        return requests, responses
+            # 解析 system_metrics traces
+            if system_metrics_traces:
+                metrics_list = []
+                for trace in system_metrics_traces:
+                    body_str = trace.get("body_str", "")
+                    if body_str:
+                        try:
+                            body = json.loads(body_str)
+                            metrics = SystemMetrics(
+                                phase=body.get("phase", ""),
+                                cpu_percent=body.get("cpu_percent", 0.0),
+                                memory_rss_mb=body.get("memory_rss_mb", 0.0),
+                                memory_vms_mb=body.get("memory_vms_mb", 0.0),
+                                read_bytes=body.get("read_bytes", 0),
+                                write_bytes=body.get("write_bytes", 0),
+                            )
+                            metrics_list.append(metrics)
+                        except json.JSONDecodeError:
+                            pass
+                if metrics_list:
+                    # 使用 iteration * 10 作为 key（与 actual_iteration 对应）
+                    system_metrics[(session_id, iteration * 10)] = metrics_list
+
+        return requests, responses, system_metrics
 
     def _group_by_timestamp(
         self, traces: List[Dict[str, Any]], threshold: float = 1.0

@@ -9,6 +9,7 @@ class TraceEventType(Enum):
     REASONING_DELTA = "reasoning_delta"
     INVOKE_REQUEST = "invoke_request"
     INVOKE_OUTPUT = "invoke_output"
+    SYSTEM_METRICS = "system_metrics"
 
 
 DEFAULT_LOGS_DIR = ".office-claw/.jiuwenclaw/service_default/.logs"
