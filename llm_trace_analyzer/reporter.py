@@ -1178,6 +1178,19 @@ class HTMLReporter:
                 )
             parts.append('</div>')
 
+        # LLM 调用统计
+        parts.append('<div class="stat-section">')
+        parts.append("<h3>LLM Calls</h3>")
+        avg_llm_per_call = stats.total_llm_time_seconds / stats.total_iterations if stats.total_iterations > 0 else 0
+        llm_rows = [
+            ("Total Time", self._format_duration(stats.total_llm_time_seconds)),
+            ("Avg Time", self._format_duration(avg_llm_per_call)),
+            ("Total Calls", f"{stats.total_iterations}"),
+        ]
+        for name, val in llm_rows:
+            parts.append(f'<div class="stat-row"><span class="stat-name">{name}</span><span class="stat-val">{val}</span></div>')
+        parts.append('</div>')
+
         # 时间统计
         parts.append('<div class="stat-section">')
         parts.append("<h3>Timing</h3>")
@@ -1326,6 +1339,19 @@ class HTMLReporter:
                     f'<div class="tool-bar"><div class="tool-bar-fill" style="width:{bar_w:.0f}%"></div></div>'
                 )
             parts.append('</div>')
+
+        # LLM 调用统计
+        parts.append('<div class="stat-section">')
+        parts.append("<h3>LLM Calls</h3>")
+        avg_llm_per_call = chain.total_llm_duration_seconds / num_iters if num_iters > 0 else 0
+        llm_rows = [
+            ("Total Time", self._format_duration(chain.total_llm_duration_seconds)),
+            ("Avg Time", self._format_duration(avg_llm_per_call)),
+            ("Total Calls", f"{num_iters}"),
+        ]
+        for name, val in llm_rows:
+            parts.append(f'<div class="stat-row"><span class="stat-name">{name}</span><span class="stat-val">{val}</span></div>')
+        parts.append('</div>')
 
         # 时间统计
         parts.append('<div class="stat-section">')
