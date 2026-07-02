@@ -1240,18 +1240,29 @@ class HTMLReporter:
             return ""
         total_calls = sum(v["count"] for v in per_tool.values())
         max_count = max(v["count"] for v in per_tool.values())
-        parts = ['<table><tr><th>Tool</th><th>Ratio</th><th>Calls</th><th>Total Time</th><th>Avg Time</th></tr>']
+        parts = [
+            '<table class="tool-calls-table">'
+            '<tr>'
+            '<th onclick="sortToolTable(this, \'name\')" class="sortable">Tool &#9650;&#9660;</th>'
+            '<th onclick="sortToolTable(this, \'ratio\')" class="sortable">Ratio &#9650;&#9660;</th>'
+            '<th onclick="sortToolTable(this, \'calls\')" class="sortable">Calls &#9650;&#9660;</th>'
+            '<th onclick="sortToolTable(this, \'total\')" class="sortable">Total Time &#9650;&#9660;</th>'
+            '<th onclick="sortToolTable(this, \'avg\')" class="sortable">Avg Time &#9650;&#9660;</th>'
+            '</tr>'
+        ]
         for name, s in per_tool.items():
             pct = s["count"] / total_calls * 100 if total_calls > 0 else 0
             bar_w = s["count"] / max_count * 100 if max_count > 0 else 0
             parts.append(
-                f'<tr>'
+                f'<tr data-name="{html.escape(name)}" data-count="{s["count"]}" '
+                f'data-total-ms="{int(s["total_time"] * 1000)}" data-avg-ms="{int(s["avg_time"] * 1000)}">'
                 f'<td>{html.escape(name)}</td>'
                 f'<td style="min-width:120px">{pct:.1f}%'
                 f'<div class="tool-bar"><div class="tool-bar-fill" style="width:{bar_w:.0f}%"></div></div></td>'
                 f'<td>{s["count"]}</td>'
                 f'<td>{self._format_duration(s["total_time"])}</td>'
                 f'<td>{self._format_duration(s["avg_time"])}</td>'
+                f'</tr>'
                 f'</tr>'
             )
         parts.append('</table>')

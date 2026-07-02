@@ -148,6 +148,10 @@ INDEX_TEMPLATE = """
 .stat-section th {{ background: #4a90d9; color: white; padding: 10px 12px; text-align: left; font-size: 13px; }}
 .stat-section td {{ padding: 10px 12px; border-bottom: 1px solid #e0e0e0; font-size: 13px; }}
 .stat-section tr:hover {{ background: #f8f9fa; }}
+.stat-section th.sortable {{ cursor: pointer; user-select: none; white-space: nowrap; }}
+.stat-section th.sortable:hover {{ background: #3a7bc8; }}
+.stat-section th.sortable.sort-asc::after {{ content: ' ▲'; font-size: 10px; }}
+.stat-section th.sortable.sort-desc::after {{ content: ' ▼'; font-size: 10px; }}
 /* Timing Chart */
 .timing-chart-wrapper {{ margin-bottom: 10px; }}
 .chart-legend {{ display: flex; gap: 16px; margin-bottom: 8px; font-size: 12px; color: #666; }}
@@ -317,6 +321,25 @@ INDEX_TEMPLATE = """
             const m = Math.floor(s / 60);
             const sec = Math.round(s % 60);
             return m + 'm ' + sec + 's';
+        }}
+        function sortToolTable(th, key) {{
+            const table = th.closest('table');
+            const tbody = table.querySelector('tbody') || table;
+            const rows = Array.from(tbody.querySelectorAll('tr[data-name]'));
+            const headers = table.querySelectorAll('th.sortable');
+            const isAsc = th.classList.contains('sort-desc');
+            headers.forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+            th.classList.add(isAsc ? 'sort-asc' : 'sort-desc');
+            rows.sort((a, b) => {{
+                let va, vb;
+                if (key === 'name') {{ va = a.dataset.name; vb = b.dataset.name; }}
+                else if (key === 'ratio' || key === 'calls') {{ va = +a.dataset.count; vb = +b.dataset.count; }}
+                else if (key === 'total') {{ va = +a.dataset.totalMs; vb = +b.dataset.totalMs; }}
+                else if (key === 'avg') {{ va = +a.dataset.avgMs; vb = +b.dataset.avgMs; }}
+                if (typeof va === 'string') return isAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+                return isAsc ? va - vb : vb - va;
+            }});
+            rows.forEach(r => tbody.appendChild(r));
         }}
         document.addEventListener('DOMContentLoaded', function() {{
             // Init all timing charts
@@ -509,6 +532,10 @@ SESSION_DETAIL_TEMPLATE = """
 .stat-section th {{ background: #4a90d9; color: white; padding: 10px 12px; text-align: left; font-size: 13px; }}
 .stat-section td {{ padding: 10px 12px; border-bottom: 1px solid #e0e0e0; font-size: 13px; }}
 .stat-section tr:hover {{ background: #f8f9fa; }}
+.stat-section th.sortable {{ cursor: pointer; user-select: none; white-space: nowrap; }}
+.stat-section th.sortable:hover {{ background: #3a7bc8; }}
+.stat-section th.sortable.sort-asc::after {{ content: ' ▲'; font-size: 10px; }}
+.stat-section th.sortable.sort-desc::after {{ content: ' ▼'; font-size: 10px; }}
 /* Timing Chart */
 .timing-chart-wrapper {{ margin-bottom: 10px; }}
 .chart-legend {{ display: flex; gap: 16px; margin-bottom: 8px; font-size: 12px; color: #666; }}
@@ -731,6 +758,25 @@ SESSION_DETAIL_TEMPLATE = """
             const m = Math.floor(s / 60);
             const sec = Math.round(s % 60);
             return m + 'm ' + sec + 's';
+        }}
+        function sortToolTable(th, key) {{
+            const table = th.closest('table');
+            const tbody = table.querySelector('tbody') || table;
+            const rows = Array.from(tbody.querySelectorAll('tr[data-name]'));
+            const headers = table.querySelectorAll('th.sortable');
+            const isAsc = th.classList.contains('sort-desc');
+            headers.forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+            th.classList.add(isAsc ? 'sort-asc' : 'sort-desc');
+            rows.sort((a, b) => {{
+                let va, vb;
+                if (key === 'name') {{ va = a.dataset.name; vb = b.dataset.name; }}
+                else if (key === 'ratio' || key === 'calls') {{ va = +a.dataset.count; vb = +b.dataset.count; }}
+                else if (key === 'total') {{ va = +a.dataset.totalMs; vb = +b.dataset.totalMs; }}
+                else if (key === 'avg') {{ va = +a.dataset.avgMs; vb = +b.dataset.avgMs; }}
+                if (typeof va === 'string') return isAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+                return isAsc ? va - vb : vb - va;
+            }});
+            rows.forEach(r => tbody.appendChild(r));
         }}
         function sortTimingList(sortType, clickedBtn) {{
             const timingPanel = clickedBtn.closest('.timing-panel');
