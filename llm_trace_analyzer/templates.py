@@ -342,12 +342,6 @@ INDEX_TEMPLATE = """
             rows.forEach(r => tbody.appendChild(r));
         }}
         document.addEventListener('DOMContentLoaded', function() {{
-            // Init all timing charts
-            document.querySelectorAll('.timing-chart-wrapper').forEach(w => {{
-                const llmBtn = w.querySelector('[data-series="llm"]');
-                if (llmBtn) toggleChartSeries(llmBtn);
-                if (llmBtn) toggleChartSeries(llmBtn);
-            }});
             const btn = document.getElementById('goTopBtn');
             if (!btn) return;
             window.addEventListener('scroll', function() {{
@@ -823,12 +817,6 @@ SESSION_DETAIL_TEMPLATE = """
             }});
         }}
         document.addEventListener('DOMContentLoaded', function() {{
-            // Init all timing charts
-            document.querySelectorAll('.timing-chart-wrapper').forEach(w => {{
-                const llmBtn = w.querySelector('[data-series="llm"]');
-                if (llmBtn) toggleChartSeries(llmBtn);
-                if (llmBtn) toggleChartSeries(llmBtn);
-            }});
             const btn = document.getElementById('goTopBtn');
             if (!btn) return;
             window.addEventListener('scroll', function() {{
