@@ -164,7 +164,9 @@ INDEX_TEMPLATE = """
 .chart-toggle.active {{ border-color: #ccc; }}
 .chart-toggle:not(.active) {{ opacity: 0.4; }}
 .timing-chart {{ display: flex; align-items: flex-end; gap: 2px; height: 200px; padding: 0 4px; border-bottom: 1px solid #e0e0e0; position: relative; }}
-.chart-bar-col {{ display: flex; flex-direction: column; align-items: center; flex: 1; cursor: pointer; }}
+.timing-chart.dense {{ gap: 0; }}
+.chart-bar-col {{ display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 3px; cursor: pointer; }}
+.timing-chart.dense .chart-bar-col {{ min-width: 0; }}
 .chart-bar {{ display: flex; flex-direction: column; width: 100%; justify-content: flex-end; }}
 .chart-bar-llm {{ background: #4a90d9; border-radius: 2px 2px 0 0; min-height: 1px; transition: opacity 0.15s, height 0.3s; }}
 .chart-bar-tool {{ background: #f57c00; border-radius: 2px 2px 0 0; min-height: 1px; transition: opacity 0.15s, height 0.3s; }}
@@ -542,7 +544,9 @@ SESSION_DETAIL_TEMPLATE = """
 .chart-toggle.active {{ border-color: #ccc; }}
 .chart-toggle:not(.active) {{ opacity: 0.4; }}
 .timing-chart {{ display: flex; align-items: flex-end; gap: 2px; height: 200px; padding: 0 4px; border-bottom: 1px solid #e0e0e0; position: relative; }}
-.chart-bar-col {{ display: flex; flex-direction: column; align-items: center; flex: 1; cursor: pointer; }}
+.timing-chart.dense {{ gap: 0; }}
+.chart-bar-col {{ display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 3px; cursor: pointer; }}
+.timing-chart.dense .chart-bar-col {{ min-width: 0; }}
 .chart-bar {{ display: flex; flex-direction: column; width: 100%; justify-content: flex-end; }}
 .chart-bar-llm {{ background: #4a90d9; border-radius: 2px 2px 0 0; min-height: 1px; transition: opacity 0.15s, height 0.3s; }}
 .chart-bar-tool {{ background: #f57c00; border-radius: 2px 2px 0 0; min-height: 1px; transition: opacity 0.15s, height 0.3s; }}

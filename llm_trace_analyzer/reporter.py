@@ -1209,6 +1209,7 @@ class HTMLReporter:
             )
 
         chart_id = f"chart_{id(timings) % 10000}"
+        dense_class = " dense" if len(sorted_timings) > 100 else ""
 
         return (
             f'<div class="timing-chart-wrapper" id="{chart_id}">'
@@ -1218,7 +1219,7 @@ class HTMLReporter:
             f'<div class="chart-legend-item chart-toggle active" data-series="tool" onclick="toggleChartSeries(this)">'
             f'<div class="chart-legend-color chart-legend-tool"></div>Tool Time</div>'
             '</div>'
-            f'<div class="timing-chart">{"".join(bars)}{"".join(pxx_lines)}</div>'
+            f'<div class="timing-chart{dense_class}">{"".join(bars)}{"".join(pxx_lines)}</div>'
             '</div>'
         )
 
