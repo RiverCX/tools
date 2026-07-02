@@ -78,6 +78,7 @@ class LogLoader:
         pattern = re.compile(
             r"^\[LLM_IO_TRACE\]\s+"
             r"event=(\w+)\s+"
+            r"(?:event_id='[^']*'\s+)?"
             r"session_id='([^']*)'\s+"
             r"request_id='([^']*)'\s+"
             r"iteration=(\d+)\s+"
@@ -112,9 +113,10 @@ class LogLoader:
         traces: List[Dict[str, Any]] = []
         pattern = re.compile(
             r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)\s+"
-            r"\[\d+\]\s+DEBUG\s+[^:]+:\d+:\s+"
+            r"\[\d+\]\s+DEBUG\s+.*?"
             r"\[LLM_IO_TRACE\]\s+"
             r"event=(\w+)\s+"
+            r"(?:event_id='[^']*'\s+)?"
             r"session_id='([^']*)'\s+"
             r"request_id='([^']*)'\s+"
             r"iteration=(\d+)\s+"

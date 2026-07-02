@@ -487,7 +487,17 @@ class ChainAnalyzer:
         total_output_cost = 0.0
         total_cost = 0.0
 
+        # 工具调用统计
+        tool_call_counts: Dict[str, int] = {}
+
         for chain in sessions.values():
+            # 工具调用统计（所有 chain 含 subagent）
+            for resp in chain.responses:
+                if resp.tool_calls:
+                    for tc in resp.tool_calls:
+                        name = tc.get("name") or tc.get("function", {}).get("name", "unknown")
+                        tool_call_counts[name] = tool_call_counts.get(name, 0) + 1
+
             if not chain.is_subagent:
                 stats.total_requests += len(chain.requests)
                 stats.total_responses += len(chain.responses)
@@ -528,9 +538,29 @@ class ChainAnalyzer:
         stats.total_output_cost = total_output_cost
         stats.total_cost = total_cost
 
+        # 工具调用统计
+        stats.tool_call_counts = dict(sorted(tool_call_counts.items(), key=lambda x: -x[1]))
+        stats.total_tool_calls = sum(tool_call_counts.values())
+
         # 计算平均值
         if total_iterations_count > 0:
             stats.avg_llm_time_seconds = total_llm_time / total_iterations_count
             stats.avg_tool_time_seconds = total_tool_time / total_iterations_count
+
+        # Per-session 统计
+        for chain in parent_chains:
+            s_tokens = sum(r.total_tokens for r in chain.responses)
+            s_cost = sum(r.total_cost for r in chain.responses)
+            s_tool_calls = sum(len(r.tool_calls) for r in chain.responses if r.tool_calls)
+            stats.session_stats.append({
+                "session_id": chain.session_id,
+                "model": chain.model_name,
+                "iterations": chain.total_iterations,
+                "llm_time": chain.total_llm_duration_seconds,
+                "tool_time": chain.total_tool_duration_seconds,
+                "tokens": s_tokens,
+                "cost": s_cost,
+                "tool_calls": s_tool_calls,
+            })
 
         return stats

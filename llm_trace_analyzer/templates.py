@@ -124,6 +124,26 @@ INDEX_TEMPLATE = """
         a:hover {{ text-decoration: underline; }}
         .model {{ color: #666; font-size: 13px; }}
         .time {{ color: #999; font-size: 12px; }}
+/* Page Tab Navigation */
+.page-tab-nav {{ display: flex; gap: 0; margin-bottom: 0; border-bottom: 2px solid #e0e0e0; padding: 0 5px; }}
+.page-tab-btn {{ padding: 10px 20px; border: 1px solid transparent; border-bottom: none; border-radius: 8px 8px 0 0; background: #f0f0f0; cursor: pointer; font-size: 14px; margin-bottom: -2px; color: #666; transition: all 0.2s; }}
+.page-tab-btn:hover {{ background: #e8e8e8; }}
+.page-tab-btn.active {{ background: white; color: #4a90d9; font-weight: bold; border-color: #e0e0e0; border-bottom-color: white; }}
+.page-tab-panel {{ display: none; padding-top: 20px; }}
+.page-tab-panel.active {{ display: block; }}
+/* Statistics Panel */
+.stat-cards {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; }}
+.stat-card {{ background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; }}
+.stat-card .stat-value {{ font-size: 28px; font-weight: bold; color: #4a90d9; }}
+.stat-card .stat-label {{ font-size: 13px; color: #666; margin-top: 4px; }}
+.stat-section {{ background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+.stat-section h3 {{ color: #1a1a2e; margin-bottom: 15px; font-size: 16px; border-bottom: 2px solid #4a90d9; padding-bottom: 8px; }}
+.stat-row {{ display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }}
+.stat-row:last-child {{ border-bottom: none; }}
+.stat-row .stat-name {{ font-weight: 500; }}
+.stat-row .stat-val {{ color: #4a90d9; font-weight: bold; }}
+.tool-bar {{ height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden; margin-top: 4px; }}
+.tool-bar-fill {{ height: 100%; background: #4a90d9; border-radius: 4px; transition: width 0.3s; }}
 .go-top-btn {{ position: fixed; bottom: 30px; right: 30px; width: 44px; height: 44px; background: #4a90d9; color: white; border: none; border-radius: 50%; cursor: pointer; font-size: 20px; line-height: 44px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.2); opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s, background 0.2s; z-index: 1000; }}
 .go-top-btn:hover {{ background: #3a7bc8; }}
 .go-top-btn.visible {{ opacity: 1; visibility: visible; }}
@@ -146,18 +166,35 @@ INDEX_TEMPLATE = """
             <span><strong>{total_cache_tokens:,}</strong> cache tokens</span>
             <span><strong>${total_cost:.4f}</strong> total cost</span>
         </div>
-        <table>
-            <tr>
-                <th>Session ID</th>
-                <th>Model</th>
-                <th>Iterations</th>
-                <th>Time</th>
-                <th>Link</th>
-            </tr>
-            {session_rows}
-        </table>
+        <div class="page-tab-nav">
+            <button class="page-tab-btn active" onclick="switchPageTab('sessions')">Sessions</button>
+            <button class="page-tab-btn" onclick="switchPageTab('statistics')">Statistics</button>
+        </div>
+        <div class="page-tab-panel active" id="tab-sessions">
+            <table>
+                <tr>
+                    <th>Session ID</th>
+                    <th>Model</th>
+                    <th>Iterations</th>
+                    <th>Time</th>
+                    <th>Link</th>
+                </tr>
+                {session_rows}
+            </table>
+        </div>
+        <div class="page-tab-panel" id="tab-statistics">
+            {statistics_html}
+        </div>
     </div>
     <script>
+        function switchPageTab(tabId) {{
+            document.querySelectorAll('.page-tab-btn').forEach(btn => {{
+                btn.classList.toggle('active', btn.getAttribute('onclick').includes("'" + tabId + "'"));
+            }});
+            document.querySelectorAll('.page-tab-panel').forEach(panel => {{
+                panel.classList.toggle('active', panel.id === 'tab-' + tabId);
+            }});
+        }}
         document.addEventListener('DOMContentLoaded', function() {{
             const btn = document.getElementById('goTopBtn');
             if (!btn) return;
@@ -318,6 +355,26 @@ SESSION_DETAIL_TEMPLATE = """
 .agent-block .collapsible {{ background: #f3e5f5; border-radius: 0 4px 4px 0; }}
 .agent-block .collapsible:hover {{ background: #e1d5e7; }}
 .agent-block .collapsible-content {{ padding: 10px 0 10px 10px; }}
+/* Page Tab Navigation */
+.page-tab-nav {{ display: flex; gap: 0; margin-bottom: 0; border-bottom: 2px solid #e0e0e0; padding: 0 5px; }}
+.page-tab-btn {{ padding: 10px 20px; border: 1px solid transparent; border-bottom: none; border-radius: 8px 8px 0 0; background: #f0f0f0; cursor: pointer; font-size: 14px; margin-bottom: -2px; color: #666; transition: all 0.2s; }}
+.page-tab-btn:hover {{ background: #e8e8e8; }}
+.page-tab-btn.active {{ background: white; color: #4a90d9; font-weight: bold; border-color: #e0e0e0; border-bottom-color: white; }}
+.page-tab-panel {{ display: none; padding-top: 15px; }}
+.page-tab-panel.active {{ display: block; }}
+/* Statistics Panel */
+.stat-cards {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }}
+.stat-card {{ background: white; border-radius: 8px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; }}
+.stat-card .stat-value {{ font-size: 24px; font-weight: bold; color: #4a90d9; }}
+.stat-card .stat-label {{ font-size: 12px; color: #666; margin-top: 4px; }}
+.stat-section {{ background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+.stat-section h3 {{ color: #1a1a2e; margin-bottom: 15px; font-size: 16px; border-bottom: 2px solid #4a90d9; padding-bottom: 8px; }}
+.stat-row {{ display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }}
+.stat-row:last-child {{ border-bottom: none; }}
+.stat-row .stat-name {{ font-weight: 500; }}
+.stat-row .stat-val {{ color: #4a90d9; font-weight: bold; }}
+.tool-bar {{ height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden; margin-top: 4px; }}
+.tool-bar-fill {{ height: 100%; background: #4a90d9; border-radius: 4px; transition: width 0.3s; }}
 /* Parallel Group (tabbed subagents) */
 .parallel-group {{ margin: 10px 0 15px 20px; border-left: 3px solid #7b1fa2; padding: 0; }}
 .parallel-header {{ padding: 8px 12px; background: #f3e5f5; border-radius: 0 4px 0 0; }}
@@ -340,9 +397,18 @@ SESSION_DETAIL_TEMPLATE = """
             <div class="meta">Iterations: {total_iterations_count} | Model Calls: {total_model_calls} | Tool Calls: {total_tool_calls}</div>
             <div class="meta">Tokens: {session_input_tokens:,} input | {session_output_tokens:,} output | {session_total_tokens:,} total | {session_cache_tokens:,} cache | ${session_total_cost:.4f}</div>
         </div>
-        {gantt_html}
-        {timing_list_html}
-        {iterations_html}
+        <div class="page-tab-nav">
+            <button class="page-tab-btn active" onclick="switchPageTab('detail')">Detail</button>
+            <button class="page-tab-btn" onclick="switchPageTab('statistics')">Statistics</button>
+        </div>
+        <div class="page-tab-panel active" id="tab-detail">
+            {gantt_html}
+            {timing_list_html}
+            {iterations_html}
+        </div>
+        <div class="page-tab-panel" id="tab-statistics">
+            {session_statistics_html}
+        </div>
     </div>
     <script>
         function toggleCollapsible(element) {{
@@ -402,6 +468,14 @@ SESSION_DETAIL_TEMPLATE = """
             document.querySelectorAll('.gantt-bar').forEach(bar => {{
                 bar.style.boxShadow = bar.dataset.agentKey === agentKey
                     ? '0 0 0 2px #4a90d9' : '';
+            }});
+        }}
+        function switchPageTab(tabId) {{
+            document.querySelectorAll('.page-tab-btn').forEach(btn => {{
+                btn.classList.toggle('active', btn.getAttribute('onclick').includes("'" + tabId + "'"));
+            }});
+            document.querySelectorAll('.page-tab-panel').forEach(panel => {{
+                panel.classList.toggle('active', panel.id === 'tab-' + tabId);
             }});
         }}
         function sortTimingList(sortType, clickedBtn) {{

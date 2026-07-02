@@ -116,6 +116,11 @@ class Statistics:
     total_input_cost: float = 0.0
     total_output_cost: float = 0.0
     total_cost: float = 0.0
+    # 工具调用统计
+    tool_call_counts: Dict[str, int] = field(default_factory=dict)  # tool_name -> count
+    total_tool_calls: int = 0
+    # 每个 session 的统计（用于对比表）
+    session_stats: List[Dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass

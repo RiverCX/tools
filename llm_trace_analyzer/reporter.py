@@ -95,6 +95,7 @@ class HTMLReporter:
             total_output_cost=stats.total_output_cost,
             total_cost=stats.total_cost,
             session_rows="\n".join(session_rows),
+            statistics_html=self._generate_global_statistics_html(result),
         )
 
         with open(report_dir / "index.html", "w", encoding="utf-8") as f:
@@ -140,6 +141,9 @@ class HTMLReporter:
         gantt_html = self._generate_gantt_html(chain) if chain.subagents else ""
         timing_list_html = self._generate_timing_list_html(chain)
 
+        # Session 级别统计
+        session_statistics_html = self._generate_session_statistics_html(chain)
+
         num_iters = len(chain.iteration_timings)
         avg_llm = chain.total_llm_duration_seconds / num_iters if num_iters > 0 else 0
 
@@ -179,6 +183,7 @@ class HTMLReporter:
             gantt_html=gantt_html,
             timing_list_html=timing_list_html,
             iterations_html=iterations_html,
+            session_statistics_html=session_statistics_html,
         )
 
         with open(detail_file, "w", encoding="utf-8") as f:
@@ -1136,6 +1141,267 @@ class HTMLReporter:
                 tool_names=tool_names,
             )
         return JSON_BLOCK_TEMPLATE.format(content_id=content_id, content=escaped_content)
+
+    def _generate_global_statistics_html(self, result: AnalysisResult) -> str:
+        """生成 index 页面的统计面板 HTML"""
+        stats = result.statistics
+        parts: List[str] = []
+
+        # 概览卡片
+        parts.append('<div class="stat-cards">')
+        overview = [
+            (stats.total_sessions, "Sessions"),
+            (stats.total_iterations, "Iterations"),
+            (self._format_duration(stats.total_llm_time_seconds), "LLM Total"),
+            (self._format_duration(stats.total_tool_time_seconds), "Tool Total"),
+            (f"{stats.total_tokens:,}", "Total Tokens"),
+            (f"${stats.total_cost:.4f}", "Total Cost"),
+        ]
+        for val, label in overview:
+            parts.append(f'<div class="stat-card"><div class="stat-value">{val}</div><div class="stat-label">{label}</div></div>')
+        parts.append('</div>')
+
+        # 工具调用统计
+        if stats.tool_call_counts:
+            max_count = max(stats.tool_call_counts.values())
+            parts.append('<div class="stat-section">')
+            parts.append("<h3>Tool Calls</h3>")
+            for name, count in stats.tool_call_counts.items():
+                pct = count / stats.total_tool_calls * 100 if stats.total_tool_calls > 0 else 0
+                bar_w = count / max_count * 100 if max_count > 0 else 0
+                parts.append(
+                    f'<div class="stat-row">'
+                    f'<span class="stat-name">{html.escape(name)}</span>'
+                    f'<span class="stat-val">{count} ({pct:.1f}%)</span>'
+                    f'</div>'
+                    f'<div class="tool-bar"><div class="tool-bar-fill" style="width:{bar_w:.0f}%"></div></div>'
+                )
+            parts.append('</div>')
+
+        # 时间统计
+        parts.append('<div class="stat-section">')
+        parts.append("<h3>Timing</h3>")
+        timing_rows = [
+            ("LLM Avg", self._format_duration(stats.avg_llm_time_seconds)),
+            ("Tool Avg", self._format_duration(stats.avg_tool_time_seconds)),
+            ("LLM Total", self._format_duration(stats.total_llm_time_seconds)),
+            ("Tool Total", self._format_duration(stats.total_tool_time_seconds)),
+            ("Total Duration", self._format_duration(stats.total_duration_seconds)),
+        ]
+        # 最大 LLM / Tool 耗时
+        max_llm = 0.0
+        max_tool = 0.0
+        for chain in result.sorted_sessions:
+            for t in chain.iteration_timings:
+                if t.llm_call_duration > max_llm:
+                    max_llm = t.llm_call_duration
+                if t.tool_processing_duration > max_tool:
+                    max_tool = t.tool_processing_duration
+        timing_rows.append(("LLM Max", self._format_duration(max_llm)))
+        timing_rows.append(("Tool Max", self._format_duration(max_tool)))
+        # 每迭代平均总时间
+        if stats.total_iterations > 0:
+            avg_total = (stats.total_llm_time_seconds + stats.total_tool_time_seconds) / stats.total_iterations
+            timing_rows.append(("Avg per Iteration", self._format_duration(avg_total)))
+        for name, val in timing_rows:
+            parts.append(f'<div class="stat-row"><span class="stat-name">{name}</span><span class="stat-val">{val}</span></div>')
+        parts.append('</div>')
+
+        # Token 统计
+        parts.append('<div class="stat-section">')
+        parts.append("<h3>Tokens</h3>")
+        cache_rate = (stats.total_cache_tokens / stats.total_tokens * 100) if stats.total_tokens > 0 else 0
+        avg_tokens = stats.total_tokens // stats.total_iterations if stats.total_iterations > 0 else 0
+        token_rows = [
+            ("Input", f"{stats.total_input_tokens:,}"),
+            ("Output", f"{stats.total_output_tokens:,}"),
+            ("Cache", f"{stats.total_cache_tokens:,}"),
+            ("Total", f"{stats.total_tokens:,}"),
+            ("Cache Hit Rate", f"{cache_rate:.1f}%"),
+            ("Avg per Iteration", f"{avg_tokens:,}"),
+        ]
+        for name, val in token_rows:
+            parts.append(f'<div class="stat-row"><span class="stat-name">{name}</span><span class="stat-val">{val}</span></div>')
+        parts.append('</div>')
+
+        # 成本统计（仅在有数据时展示）
+        if stats.total_cost > 0:
+            parts.append('<div class="stat-section">')
+            parts.append("<h3>Cost</h3>")
+            cost_rows = [
+                ("Input", f"${stats.total_input_cost:.4f}"),
+                ("Output", f"${stats.total_output_cost:.4f}"),
+                ("Total", f"${stats.total_cost:.4f}"),
+            ]
+            for name, val in cost_rows:
+                parts.append(f'<div class="stat-row"><span class="stat-name">{name}</span><span class="stat-val">{val}</span></div>')
+            parts.append('</div>')
+
+        # 模型使用统计
+        if stats.sessions_by_model:
+            parts.append('<div class="stat-section">')
+            parts.append("<h3>Models</h3>")
+            parts.append('<table><tr><th>Model</th><th>Sessions</th></tr>')
+            for model, cnt in sorted(stats.sessions_by_model.items(), key=lambda x: -x[1]):
+                parts.append(f'<tr><td>{html.escape(model)}</td><td>{cnt}</td></tr>')
+            parts.append('</table></div>')
+
+        # Session 对比表
+        if stats.session_stats:
+            parts.append('<div class="stat-section">')
+            parts.append("<h3>Session Comparison</h3>")
+            parts.append(
+                '<table><tr>'
+                '<th>Session</th><th>Model</th><th>Iters</th>'
+                '<th>LLM</th><th>Tool</th><th>Tokens</th><th>Cost</th><th>Tool Calls</th>'
+                '</tr>'
+            )
+            for s in stats.session_stats:
+                short = self._short_session_id(s["session_id"])
+                parts.append(
+                    f'<tr>'
+                    f'<td>{short}</td>'
+                    f'<td>{html.escape(s["model"])}</td>'
+                    f'<td>{s["iterations"]}</td>'
+                    f'<td>{self._format_duration(s["llm_time"])}</td>'
+                    f'<td>{self._format_duration(s["tool_time"])}</td>'
+                    f'<td>{s["tokens"]:,}</td>'
+                    f'<td>${s["cost"]:.4f}</td>'
+                    f'<td>{s["tool_calls"]}</td>'
+                    f'</tr>'
+                )
+            parts.append('</table></div>')
+
+        return "\n".join(parts)
+
+    def _generate_session_statistics_html(self, chain: LLMChain) -> str:
+        """生成 session 详情页的统计面板 HTML"""
+        parts: List[str] = []
+
+        # 收集工具调用统计
+        tool_counts: Dict[str, int] = {}
+        for resp in chain.responses:
+            if resp.tool_calls:
+                for tc in resp.tool_calls:
+                    name = tc.get("name") or tc.get("function", {}).get("name", "unknown")
+                    tool_counts[name] = tool_counts.get(name, 0) + 1
+        total_tool_calls = sum(tool_counts.values())
+        tool_counts_sorted = dict(sorted(tool_counts.items(), key=lambda x: -x[1]))
+
+        # 时间统计
+        timings = chain.iteration_timings
+        num_iters = len(timings)
+        max_llm = max((t.llm_call_duration for t in timings), default=0)
+        max_tool = max((t.tool_processing_duration for t in timings), default=0)
+        min_llm = min((t.llm_call_duration for t in timings if t.llm_call_duration > 0), default=0)
+        min_tool = min((t.tool_processing_duration for t in timings if t.tool_processing_duration > 0), default=0)
+
+        # Token 统计
+        s_input = sum(r.input_tokens for r in chain.responses)
+        s_output = sum(r.output_tokens for r in chain.responses)
+        s_total = sum(r.total_tokens for r in chain.responses)
+        s_cache = sum(r.cache_tokens for r in chain.responses)
+        s_cost = sum(r.total_cost for r in chain.responses)
+
+        # 概览卡片
+        parts.append('<div class="stat-cards">')
+        overview = [
+            (num_iters, "Iterations"),
+            (len(chain.subagents), "Subagents"),
+            (total_tool_calls, "Tool Calls"),
+            (self._format_duration(chain.total_llm_duration_seconds), "LLM Total"),
+            (self._format_duration(chain.total_tool_duration_seconds), "Tool Total"),
+            (f"{s_total:,}", "Total Tokens"),
+        ]
+        for val, label in overview:
+            parts.append(f'<div class="stat-card"><div class="stat-value">{val}</div><div class="stat-label">{label}</div></div>')
+        parts.append('</div>')
+
+        # 工具调用统计
+        if tool_counts_sorted:
+            max_count = max(tool_counts_sorted.values())
+            parts.append('<div class="stat-section">')
+            parts.append("<h3>Tool Calls</h3>")
+            for name, count in tool_counts_sorted.items():
+                pct = count / total_tool_calls * 100 if total_tool_calls > 0 else 0
+                bar_w = count / max_count * 100 if max_count > 0 else 0
+                parts.append(
+                    f'<div class="stat-row">'
+                    f'<span class="stat-name">{html.escape(name)}</span>'
+                    f'<span class="stat-val">{count} ({pct:.1f}%)</span>'
+                    f'</div>'
+                    f'<div class="tool-bar"><div class="tool-bar-fill" style="width:{bar_w:.0f}%"></div></div>'
+                )
+            parts.append('</div>')
+
+        # 时间统计
+        parts.append('<div class="stat-section">')
+        parts.append("<h3>Timing</h3>")
+        avg_llm = chain.total_llm_duration_seconds / num_iters if num_iters > 0 else 0
+        avg_tool = chain.total_tool_duration_seconds / num_iters if num_iters > 0 else 0
+        avg_total = avg_llm + avg_tool
+        timing_rows = [
+            ("LLM Avg", self._format_duration(avg_llm)),
+            ("LLM Min", self._format_duration(min_llm)),
+            ("LLM Max", self._format_duration(max_llm)),
+            ("Tool Avg", self._format_duration(avg_tool)),
+            ("Tool Min", self._format_duration(min_tool)),
+            ("Tool Max", self._format_duration(max_tool)),
+            ("Avg per Iteration", self._format_duration(avg_total)),
+            ("LLM Total", self._format_duration(chain.total_llm_duration_seconds)),
+            ("Tool Total", self._format_duration(chain.total_tool_duration_seconds)),
+        ]
+        for name, val in timing_rows:
+            parts.append(f'<div class="stat-row"><span class="stat-name">{name}</span><span class="stat-val">{val}</span></div>')
+        parts.append('</div>')
+
+        # Token 统计
+        parts.append('<div class="stat-section">')
+        parts.append("<h3>Tokens</h3>")
+        cache_rate = (s_cache / s_total * 100) if s_total > 0 else 0
+        avg_tokens = s_total // num_iters if num_iters > 0 else 0
+        token_rows = [
+            ("Input", f"{s_input:,}"),
+            ("Output", f"{s_output:,}"),
+            ("Cache", f"{s_cache:,}"),
+            ("Total", f"{s_total:,}"),
+            ("Cache Hit Rate", f"{cache_rate:.1f}%"),
+            ("Avg per Iteration", f"{avg_tokens:,}"),
+        ]
+        for name, val in token_rows:
+            parts.append(f'<div class="stat-row"><span class="stat-name">{name}</span><span class="stat-val">{val}</span></div>')
+        parts.append('</div>')
+
+        # 成本统计
+        if s_cost > 0:
+            s_input_cost = sum(r.input_cost for r in chain.responses)
+            s_output_cost = sum(r.output_cost for r in chain.responses)
+            parts.append('<div class="stat-section">')
+            parts.append("<h3>Cost</h3>")
+            cost_rows = [
+                ("Input", f"${s_input_cost:.4f}"),
+                ("Output", f"${s_output_cost:.4f}"),
+                ("Total", f"${s_cost:.4f}"),
+            ]
+            for name, val in cost_rows:
+                parts.append(f'<div class="stat-row"><span class="stat-name">{name}</span><span class="stat-val">{val}</span></div>')
+            parts.append('</div>')
+
+        # Subagent 统计
+        if chain.subagents:
+            parts.append('<div class="stat-section">')
+            parts.append("<h3>Subagents</h3>")
+            parts.append('<table><tr><th>Subagent</th><th>Depth</th><th>Duration</th></tr>')
+            for sa in chain.subagents:
+                duration = sa.end_time - sa.start_time if sa.end_time and sa.start_time else 0
+                short = self._short_session_id(sa.session_id)
+                parts.append(
+                    f'<tr><td>{short}</td><td>{sa.depth}</td>'
+                    f'<td>{self._format_duration(duration)}</td></tr>'
+                )
+            parts.append('</table></div>')
+
+        return "\n".join(parts)
 
     def _format_timestamp(self, timestamp: float) -> str:
         if timestamp == 0:

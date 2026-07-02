@@ -53,6 +53,6 @@ Parses `[LLM_IO_TRACE]` entries with:
 
 ## Gotchas
 
-- **No tests yet** - pytest configured but `tests/` doesn't exist
 - **Windows paths** - use backslashes in PowerShell/CMD
 - **OfficeClaw dependency** - requires `LOG_LEVEL=debug` for LLM_IO_TRACE logging
+- **Test fixtures** - tests use `tests/fixtures/llm_trace_b2fbb87bbeeb.log` as sample data, fixtures defined in `conftest.py`
