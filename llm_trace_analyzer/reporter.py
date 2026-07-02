@@ -1318,6 +1318,42 @@ class HTMLReporter:
         parts.append('</table>')
         return "\n".join(parts)
 
+    def _generate_metrics_tips_html(self) -> str:
+        """生成指标说明 tips 面板"""
+        return (
+            '<div class="stat-section">'
+            '<div class="collapsible" onclick="toggleCollapsible(this)" style="background:#e3f2fd;border-radius:4px;padding:8px 12px;cursor:pointer">'
+            '<span class="toggle-icon">&#9654;</span> '
+            '<strong>Metric Definitions &amp; Caveats</strong></div>'
+            '<div class="collapsible-content" style="padding:12px 0;font-size:13px;color:#555;line-height:1.8">'
+            '<table style="width:100%;border-collapse:collapse">'
+            '<tr style="border-bottom:1px solid #e0e0e0"><td style="padding:6px 12px;font-weight:600;width:140px;vertical-align:top">LLM Time</td>'
+            '<td style="padding:6px 12px">response.timestamp − request.timestamp (LLM_IO_TRACE). '
+            'Wall-clock time of the LLM API call, includes network latency and server queuing.</td></tr>'
+            '<tr style="border-bottom:1px solid #e0e0e0"><td style="padding:6px 12px;font-weight:600;vertical-align:top">Tool Time</td>'
+            '<td style="padding:6px 12px">next_request.timestamp − current_response.timestamp. '
+            'Wall-clock gap between LLM response and the next request from the same session. '
+            '<span style="color:#d32f2f">⚠ Includes framework scheduling, context engine processing, '
+            'subagent spawning overhead — not just tool CPU time. Can be significantly inflated. '
+            'May occasionally show negative values due to parser request/response pairing issues.</span></td></tr>'
+            '<tr style="border-bottom:1px solid #e0e0e0"><td style="padding:6px 12px;font-weight:600;vertical-align:top">Per-Tool Time</td>'
+            '<td style="padding:6px 12px">Each iteration\'s Tool Time is divided equally among all tool calls in that iteration. '
+            '<span style="color:#d32f2f">⚠ This is an approximation — actual per-tool execution time varies. '
+            'No tool-level start/end events are available in the current logs.</span></td></tr>'
+            '<tr style="border-bottom:1px solid #e0e0e0"><td style="padding:6px 12px;font-weight:600;vertical-align:top">Tokens/sec</td>'
+            '<td style="padding:6px 12px">Total tokens ÷ Total LLM Time. '
+            'Rough throughput estimate across all iterations, not per-call throughput. '
+            'Includes both input and output tokens.</td></tr>'
+            '<tr style="border-bottom:1px solid #e0e0e0"><td style="padding:6px 12px;font-weight:600;vertical-align:top">P50 / P90 / P95 / P99</td>'
+            '<td style="padding:6px 12px">Percentile of per-iteration LLM call durations (or Tool / Total in the chart). '
+            'Based on wall-clock LLM Time, same caveats apply.</td></tr>'
+            '<tr><td style="padding:6px 12px;font-weight:600;vertical-align:top">Timing Chart</td>'
+            '<td style="padding:6px 12px">Each bar = one iteration, sorted by start time. '
+            'Blue = LLM Time, Orange = Tool Time. '
+            'Click legend to toggle series visibility; Pxx lines recalculate dynamically based on visible series.</td></tr>'
+            '</table></div></div>'
+        )
+
     def _generate_global_statistics_html(self, result: AnalysisResult) -> str:
         """生成 index 页面的统计面板 HTML"""
         stats = result.statistics
@@ -1342,6 +1378,9 @@ class HTMLReporter:
         for val, label in overview:
             parts.append(f'<div class="stat-card"><div class="stat-value">{val}</div><div class="stat-label">{label}</div></div>')
         parts.append('</div>')
+
+        # 指标说明
+        parts.append(self._generate_metrics_tips_html())
 
         # 时间分布图
         all_timings = []
@@ -1516,6 +1555,9 @@ class HTMLReporter:
         for val, label in overview:
             parts.append(f'<div class="stat-card"><div class="stat-value">{val}</div><div class="stat-label">{label}</div></div>')
         parts.append('</div>')
+
+        # 指标说明
+        parts.append(self._generate_metrics_tips_html())
 
         # 时间分布图
         chart_html = self._render_timing_chart(chain.iteration_timings)
