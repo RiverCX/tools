@@ -124,6 +124,7 @@ INDEX_TEMPLATE = """
         a:hover {{ text-decoration: underline; }}
         .model {{ color: #666; font-size: 13px; }}
         .time {{ color: #999; font-size: 12px; }}
+        .first-msg {{ max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: #555; }}
 /* Page Tab Navigation */
 .page-tab-nav {{ display: flex; gap: 0; margin-bottom: 0; border-bottom: 2px solid #e0e0e0; padding: 0 5px; }}
 .page-tab-btn {{ padding: 10px 20px; border: 1px solid transparent; border-bottom: none; border-radius: 8px 8px 0 0; background: #f0f0f0; cursor: pointer; font-size: 14px; margin-bottom: -2px; color: #666; transition: all 0.2s; }}
@@ -227,6 +228,7 @@ INDEX_TEMPLATE = """
                     <th>Model</th>
                     <th>Iterations</th>
                     <th>Time</th>
+                    <th>Prompt</th>
                     <th>Link</th>
                 </tr>
                 {session_rows}
@@ -491,6 +493,7 @@ SESSION_ROW_TEMPLATE = """
     <td class="model">{model_name}</td>
     <td>{total_iterations}</td>
     <td class="time">{start_time} - {end_time}</td>
+    <td class="first-msg" title="{first_message}">{first_message}</td>
     <td><a href="{detail_file}">View Details</a></td>
 </tr>
 """

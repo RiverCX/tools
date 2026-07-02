@@ -62,6 +62,38 @@ class HTMLReporter:
             short_id = self._short_session_id(chain.session_id)
             print(f"  - session_{short_id}.html")
 
+    def _extract_first_user_message(self, chain: LLMChain) -> str:
+        """提取 session 第一条用户消息内容"""
+        import re as _re
+        for req in sorted(chain.requests, key=lambda r: r.timestamp):
+            for msg in req.messages:
+                if msg.get("role") == "user":
+                    content = msg.get("content", "")
+                    if isinstance(content, list):
+                        for part in content:
+                            if isinstance(part, dict) and part.get("type") == "text":
+                                content = part.get("text", "")
+                                break
+                        else:
+                            content = str(content)
+                    if not content:
+                        continue
+                    # 尝试从框架包装消息中提取实际 content
+                    m = _re.search(r'\{[^{}]*"content"\s*:\s*"[^"]*"', content)
+                    if m:
+                        try:
+                            # 匹配到包含 content 字段的 JSON 片段, 尝试完整解析
+                            json_match = _re.search(r'\{.*\}', content, _re.DOTALL)
+                            if json_match:
+                                obj = json.loads(json_match.group())
+                                extracted = obj.get("content", "")
+                                if extracted:
+                                    content = extracted
+                        except (json.JSONDecodeError, ValueError):
+                            pass
+                    return content[:200].replace("\n", " ").strip()
+        return ""
+
     def _generate_index(self, result: AnalysisResult, report_dir: Path) -> None:
         stats = result.statistics
 
@@ -69,6 +101,7 @@ class HTMLReporter:
         for chain in result.sorted_sessions:
             short_id = self._short_session_id(chain.session_id)
             detail_file = f"session_{short_id}.html"
+            first_msg = self._extract_first_user_message(chain)
 
             row = SESSION_ROW_TEMPLATE.format(
                 session_id_short=short_id,
@@ -78,6 +111,7 @@ class HTMLReporter:
                 start_time=self._format_timestamp(chain.start_time),
                 end_time=self._format_timestamp(chain.end_time),
                 detail_file=detail_file,
+                first_message=html.escape(first_msg),
             )
             session_rows.append(row)
 
