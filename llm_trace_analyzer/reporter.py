@@ -1158,6 +1158,14 @@ class HTMLReporter:
             max_count = max(stats.tool_call_counts.values())
             parts.append('<div class="stat-section">')
             parts.append("<h3>Tool Calls</h3>")
+            avg_tool_per_call = stats.total_tool_time_seconds / stats.total_tool_calls if stats.total_tool_calls > 0 else 0
+            summary_rows = [
+                ("Total Time", self._format_duration(stats.total_tool_time_seconds)),
+                ("Avg Time", self._format_duration(avg_tool_per_call)),
+                ("Total Calls", f"{stats.total_tool_calls}"),
+            ]
+            for name, val in summary_rows:
+                parts.append(f'<div class="stat-row"><span class="stat-name">{name}</span><span class="stat-val">{val}</span></div>')
             for name, count in stats.tool_call_counts.items():
                 pct = count / stats.total_tool_calls * 100 if stats.total_tool_calls > 0 else 0
                 bar_w = count / max_count * 100 if max_count > 0 else 0
@@ -1299,6 +1307,14 @@ class HTMLReporter:
             max_count = max(tool_counts_sorted.values())
             parts.append('<div class="stat-section">')
             parts.append("<h3>Tool Calls</h3>")
+            avg_tool_per_call = chain.total_tool_duration_seconds / total_tool_calls if total_tool_calls > 0 else 0
+            summary_rows = [
+                ("Total Time", self._format_duration(chain.total_tool_duration_seconds)),
+                ("Avg Time", self._format_duration(avg_tool_per_call)),
+                ("Total Calls", f"{total_tool_calls}"),
+            ]
+            for name, val in summary_rows:
+                parts.append(f'<div class="stat-row"><span class="stat-name">{name}</span><span class="stat-val">{val}</span></div>')
             for name, count in tool_counts_sorted.items():
                 pct = count / total_tool_calls * 100 if total_tool_calls > 0 else 0
                 bar_w = count / max_count * 100 if max_count > 0 else 0
