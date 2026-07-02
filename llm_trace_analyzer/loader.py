@@ -59,18 +59,15 @@ class LogLoader:
                     raise FileNotFoundError(f"日志文件不存在: {self.file_path}") from e
                 # 绕接文件不存在时跳过
                 continue
-            except UnicodeDecodeError:
-                traces = self._load_single_file(log_file, encoding='gbk')
-                all_traces.extend(traces)
 
         # 按时间戳排序
         all_traces.sort(key=lambda t: t.get('timestamp', 0))
 
         return all_traces
 
-    def _load_single_file(self, file_path: Path, encoding: str = 'utf-8') -> List[Dict[str, Any]]:
+    def _load_single_file(self, file_path: Path) -> List[Dict[str, Any]]:
         """加载单个日志文件"""
-        with open(file_path, encoding=encoding) as f:
+        with open(file_path, encoding='utf-8', errors='replace') as f:
             if file_path.suffix == ".json":
                 return self._parse_json_file(f)
             else:
