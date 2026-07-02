@@ -223,7 +223,7 @@ INDEX_TEMPLATE = """
         <div class="page-tab-panel active" id="tab-sessions">
             <table>
                 <tr>
-                    <th style="width:30px"></th>
+                    <th style="width:30px"><input type="checkbox" class="session-cb" id="selectAllCb" onchange="toggleSelectAll(this)" title="Select All" /></th>
                     <th>Session ID</th>
                     <th>Model</th>
                     <th>Iterations</th>
@@ -258,7 +258,22 @@ INDEX_TEMPLATE = """
                 selectedSessions = selectedSessions.filter(s => s !== sid);
                 if (baselineSessionId === sid) baselineSessionId = null;
             }}
+            // 更新全选状态
+            const allCbs = document.querySelectorAll('.session-cb[data-session-id]');
+            const allChecked = allCbs.length > 0 && Array.from(allCbs).every(c => c.checked);
+            const selectAll = document.getElementById('selectAllCb');
+            if (selectAll) selectAll.checked = allChecked;
             renderComparison();
+        }}
+
+        function toggleSelectAll(masterCb) {{
+            const cbs = document.querySelectorAll('.session-cb[data-session-id]');
+            cbs.forEach(cb => {{
+                if (cb.checked !== masterCb.checked) {{
+                    cb.checked = masterCb.checked;
+                    toggleSessionCompare(cb);
+                }}
+            }});
         }}
 
         function setBaseline(sid) {{
