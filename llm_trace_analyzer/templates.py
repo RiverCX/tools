@@ -543,10 +543,20 @@ SESSION_DETAIL_TEMPLATE = """
             const reasoningChars = bar.dataset.reasoningChars || '0';
             const contentChars = bar.dataset.contentChars || '0';
             const toolCallsChars = bar.dataset.toolCallsChars || '0';
+            const inputTokens = bar.dataset.inputTokens || '0';
+            const outputTokens = bar.dataset.outputTokens || '0';
+            const totalTokens = bar.dataset.totalTokens || '0';
+            const cacheTokens = bar.dataset.cacheTokens || '0';
             const charsHtml = `
                 <div class="tt-row"><span class="tt-label">Reasoning</span><span class="tt-value">${{reasoningChars}} chars</span></div>
                 <div class="tt-row"><span class="tt-label">Content</span><span class="tt-value">${{contentChars}} chars</span></div>
                 <div class="tt-row"><span class="tt-label">Tool Calls</span><span class="tt-value">${{toolCallsChars}} chars</span></div>
+            `;
+            const tokensHtml = `
+                <div class="tt-row"><span class="tt-label">Input</span><span class="tt-value">${{Number(inputTokens).toLocaleString()}}</span></div>
+                <div class="tt-row"><span class="tt-label">Output</span><span class="tt-value">${{Number(outputTokens).toLocaleString()}}</span></div>
+                <div class="tt-row"><span class="tt-label">Cache</span><span class="tt-value">${{Number(cacheTokens).toLocaleString()}}</span></div>
+                <div class="tt-row"><span class="tt-label">Total Tokens</span><span class="tt-value">${{Number(totalTokens).toLocaleString()}}</span></div>
             `;
 
             if (fullContent !== undefined && fullContent !== '') {{
@@ -568,6 +578,7 @@ SESSION_DETAIL_TEMPLATE = """
                     <div class="tt-row"><span class="tt-label">Total</span><span class="tt-value">${{total}}</span></div>
                     <div class="tt-row"><span class="tt-label">Time</span><span class="tt-value">${{timeRange}}</span></div>
                     ${{charsHtml}}
+                    ${{tokensHtml}}
                     ${{tcHtml}}
                     <div class="tt-content">${{fullContent}}</div>
                 `;
@@ -589,6 +600,7 @@ SESSION_DETAIL_TEMPLATE = """
                     <div class="tt-row"><span class="tt-label">Total</span><span class="tt-value">${{total}}</span></div>
                     <div class="tt-row"><span class="tt-label">Time</span><span class="tt-value">${{timeRange}}</span></div>
                     ${{charsHtml}}
+                    ${{tokensHtml}}
                 `;
             }}
             tt.classList.add('visible');

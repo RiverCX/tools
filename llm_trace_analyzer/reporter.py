@@ -451,6 +451,10 @@ class HTMLReporter:
                     "reasoning-chars": str(reasoning_chars),
                     "content-chars": str(content_chars),
                     "tool-calls-chars": str(tc_chars),
+                    "input-tokens": str(resp.input_tokens if resp else 0),
+                    "output-tokens": str(resp.output_tokens if resp else 0),
+                    "total-tokens": str(resp.total_tokens if resp else 0),
+                    "cache-tokens": str(resp.cache_tokens if resp else 0),
                 }
 
                 detail_rows.append(self._gantt_row_html(
@@ -566,6 +570,10 @@ class HTMLReporter:
         reasoning_chars = 0
         content_chars = 0
         tool_calls_chars = 0
+        input_tokens = 0
+        output_tokens = 0
+        total_tokens = 0
+        cache_tokens = 0
         if responses:
             for r in responses:
                 reasoning_chars += len(r.reasoning_content or "")
@@ -573,6 +581,10 @@ class HTMLReporter:
                 if r.tool_calls:
                     import json as _json
                     tool_calls_chars += len(_json.dumps(r.tool_calls, ensure_ascii=False))
+                input_tokens += r.input_tokens
+                output_tokens += r.output_tokens
+                total_tokens += r.total_tokens
+                cache_tokens += r.cache_tokens
 
         return {
             "agent-name": label,
@@ -586,6 +598,10 @@ class HTMLReporter:
             "reasoning-chars": str(reasoning_chars),
             "content-chars": str(content_chars),
             "tool-calls-chars": str(tool_calls_chars),
+            "input-tokens": str(input_tokens),
+            "output-tokens": str(output_tokens),
+            "total-tokens": str(total_tokens),
+            "cache-tokens": str(cache_tokens),
         }
 
     def _generate_timing_list_html(self, chain: LLMChain) -> str:
