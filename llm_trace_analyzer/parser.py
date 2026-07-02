@@ -155,6 +155,7 @@ class TraceParser:
                                 memory_vms_mb=body.get("memory_vms_mb", 0.0),
                                 read_bytes=body.get("read_bytes", 0),
                                 write_bytes=body.get("write_bytes", 0),
+                                timestamp=trace.get("timestamp", 0.0),
                             )
                             metrics_list.append(metrics)
                         except json.JSONDecodeError:

@@ -8,12 +8,13 @@ from typing import Any, Dict, List, Optional, Tuple
 class SystemMetrics:
     """系统资源指标"""
 
-    phase: str = ""  # before_llm, after_llm, before_tool, after_tool
+    phase: str = ""  # periodic (周期性采样)
     cpu_percent: float = 0.0
     memory_rss_mb: float = 0.0
     memory_vms_mb: float = 0.0
     read_bytes: int = 0
     write_bytes: int = 0
+    timestamp: float = 0.0  # 采样时间戳
 
 
 @dataclass
