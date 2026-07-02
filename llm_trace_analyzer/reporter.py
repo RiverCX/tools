@@ -1325,12 +1325,19 @@ class HTMLReporter:
 
         # 概览卡片
         parts.append('<div class="stat-cards">')
+        avg_llm_overview = stats.total_llm_time_seconds / stats.total_iterations if stats.total_iterations > 0 else 0
+        avg_tool_overview = stats.total_tool_time_seconds / stats.total_iterations if stats.total_iterations > 0 else 0
+        tps_overview = stats.total_tokens / stats.total_llm_time_seconds if stats.total_llm_time_seconds > 0 else 0
         overview = [
             (stats.total_sessions, "Sessions"),
             (stats.total_iterations, "Iterations"),
             (self._format_duration(stats.total_llm_time_seconds), "LLM Total"),
             (self._format_duration(stats.total_tool_time_seconds), "Tool Total"),
+            (self._format_duration(avg_llm_overview), "Avg LLM"),
+            (self._format_duration(avg_tool_overview), "Avg Tool"),
             (f"{stats.total_tokens:,}", "Total Tokens"),
+            (f"{stats.total_cache_tokens:,}", "Cache Tokens"),
+            (f"{tps_overview:.1f} tok/s", "Tokens/sec"),
         ]
         for val, label in overview:
             parts.append(f'<div class="stat-card"><div class="stat-value">{val}</div><div class="stat-label">{label}</div></div>')
@@ -1411,6 +1418,7 @@ class HTMLReporter:
         parts.append("<h3>Tokens</h3>")
         cache_rate = (stats.total_cache_tokens / stats.total_tokens * 100) if stats.total_tokens > 0 else 0
         avg_tokens = stats.total_tokens // stats.total_iterations if stats.total_iterations > 0 else 0
+        tps = stats.total_tokens / stats.total_llm_time_seconds if stats.total_llm_time_seconds > 0 else 0
         token_rows = [
             ("Input", f"{stats.total_input_tokens:,}"),
             ("Output", f"{stats.total_output_tokens:,}"),
@@ -1418,6 +1426,7 @@ class HTMLReporter:
             ("Total", f"{stats.total_tokens:,}"),
             ("Cache Hit Rate", f"{cache_rate:.1f}%"),
             ("Avg per Iteration", f"{avg_tokens:,}"),
+            ("Tokens/sec", f"{tps:.1f}"),
         ]
         for name, val in token_rows:
             parts.append(f'<div class="stat-row"><span class="stat-name">{name}</span><span class="stat-val">{val}</span></div>')
@@ -1489,13 +1498,20 @@ class HTMLReporter:
 
         # 概览卡片
         parts.append('<div class="stat-cards">')
+        avg_llm_s = chain.total_llm_duration_seconds / num_iters if num_iters > 0 else 0
+        avg_tool_s = chain.total_tool_duration_seconds / num_iters if num_iters > 0 else 0
+        tps_s = s_total / chain.total_llm_duration_seconds if chain.total_llm_duration_seconds > 0 else 0
         overview = [
             (num_iters, "Iterations"),
             (len(chain.subagents), "Subagents"),
             (total_tool_calls, "Tool Calls"),
             (self._format_duration(chain.total_llm_duration_seconds), "LLM Total"),
             (self._format_duration(chain.total_tool_duration_seconds), "Tool Total"),
+            (self._format_duration(avg_llm_s), "Avg LLM"),
+            (self._format_duration(avg_tool_s), "Avg Tool"),
             (f"{s_total:,}", "Total Tokens"),
+            (f"{s_cache:,}", "Cache Tokens"),
+            (f"{tps_s:.1f} tok/s", "Tokens/sec"),
         ]
         for val, label in overview:
             parts.append(f'<div class="stat-card"><div class="stat-value">{val}</div><div class="stat-label">{label}</div></div>')
@@ -1563,6 +1579,7 @@ class HTMLReporter:
         parts.append("<h3>Tokens</h3>")
         cache_rate = (s_cache / s_total * 100) if s_total > 0 else 0
         avg_tokens = s_total // num_iters if num_iters > 0 else 0
+        tps_s2 = s_total / chain.total_llm_duration_seconds if chain.total_llm_duration_seconds > 0 else 0
         token_rows = [
             ("Input", f"{s_input:,}"),
             ("Output", f"{s_output:,}"),
@@ -1570,6 +1587,7 @@ class HTMLReporter:
             ("Total", f"{s_total:,}"),
             ("Cache Hit Rate", f"{cache_rate:.1f}%"),
             ("Avg per Iteration", f"{avg_tokens:,}"),
+            ("Tokens/sec", f"{tps_s2:.1f}"),
         ]
         for name, val in token_rows:
             parts.append(f'<div class="stat-row"><span class="stat-name">{name}</span><span class="stat-val">{val}</span></div>')
