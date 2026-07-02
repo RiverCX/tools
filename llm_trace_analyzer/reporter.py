@@ -1193,16 +1193,16 @@ class HTMLReporter:
             return ""
         total_calls = sum(v["count"] for v in per_tool.values())
         max_count = max(v["count"] for v in per_tool.values())
-        parts = ['<table><tr><th>Tool</th><th>Calls</th><th>Ratio</th><th>Total Time</th><th>Avg Time</th></tr>']
+        parts = ['<table><tr><th>Tool</th><th>Ratio</th><th>Calls</th><th>Total Time</th><th>Avg Time</th></tr>']
         for name, s in per_tool.items():
             pct = s["count"] / total_calls * 100 if total_calls > 0 else 0
             bar_w = s["count"] / max_count * 100 if max_count > 0 else 0
             parts.append(
                 f'<tr>'
                 f'<td>{html.escape(name)}</td>'
-                f'<td style="text-align:right">{s["count"]}</td>'
                 f'<td style="min-width:120px">{pct:.1f}%'
                 f'<div class="tool-bar"><div class="tool-bar-fill" style="width:{bar_w:.0f}%"></div></div></td>'
+                f'<td>{s["count"]}</td>'
                 f'<td>{self._format_duration(s["total_time"])}</td>'
                 f'<td>{self._format_duration(s["avg_time"])}</td>'
                 f'</tr>'
