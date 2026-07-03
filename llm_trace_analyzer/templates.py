@@ -327,12 +327,10 @@ INDEX_TEMPLATE = """
                     ['Model', 'model', 'string'],
                     ['Iterations', 'iterations', 'number'],
                     ['Total Time', 'total_time', 'time'],
+                ]],
+                ['LLM 信息', [
                     ['LLM Time', 'llm_time', 'time'],
                     ['Avg LLM', 'avg_llm_time', 'time'],
-                    ['Tool Time', 'tool_time', 'time'],
-                    ['Avg Tool', 'avg_tool_time', 'time'],
-                ]],
-                ['Token 信息', [
                     ['Total Tokens', 'tokens', 'number'],
                     ['Output Tokens', 'output_tokens', 'number'],
                     ['Cache Tokens ⚠', 'cache_tokens', 'number'],
@@ -341,6 +339,8 @@ INDEX_TEMPLATE = """
                     ['Content Chars', 'content_chars', 'number'],
                 ]],
                 ['工具信息', [
+                    ['Tool Time', 'tool_time', 'time'],
+                    ['Avg Tool', 'avg_tool_time', 'time'],
                     ['Tool Calls', 'tool_calls', 'number'],
                 ]],
             ];
