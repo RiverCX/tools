@@ -1309,7 +1309,6 @@ class HTMLReporter:
         # 平均值
         avg_input = sum(d["input"] for d in chart_data) / len(chart_data)
         avg_output = sum(d["output"] for d in chart_data) / len(chart_data)
-        avg_total = avg_input + avg_output
 
         # 推理时长归一化到 token 轴
         max_llm = max((d["llm_duration"] for d in chart_data), default=0)
@@ -1346,7 +1345,6 @@ class HTMLReporter:
                 y_pct = 100 - (d["llm_duration"] * llm_scale / max_tokens) * 100
                 line_points.append(f"{x_pct:.1f},{y_pct:.1f}")
 
-        avg_bottom_pct = (avg_total / max_tokens) * 100
         chart_id = f"token-chart_{abs(hash((id(chain), session_id or 'all'))) % 100000}"
         dense_class = " dense" if len(chart_data) > 100 else ""
 
@@ -1373,9 +1371,6 @@ class HTMLReporter:
             '</div>'
             f'<div class="timing-chart{dense_class}">'
             f'{"".join(bars)}'
-            f'<div class="chart-avg-line" style="bottom:{avg_bottom_pct:.1f}%" '
-            f'data-avg-val="{avg_total:.0f}" data-avg-input="{avg_input:.0f}" data-avg-output="{avg_output:.0f}">'
-            f'<span class="chart-avg-line-label">Avg: {avg_total:,.0f} tok/iter</span></div>'
             f'{svg_line}'
             f'</div>'
             f'<div class="chart-pxx-legend">'
