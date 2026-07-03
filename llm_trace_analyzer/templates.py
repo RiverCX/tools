@@ -192,8 +192,10 @@ INDEX_TEMPLATE = """
 .chart-bar-col:hover .chart-bar-llm, .chart-bar-col:hover .chart-bar-tool {{ opacity: 0.8; }}
 .timing-chart.hide-llm .chart-bar-llm {{ height: 0 !important; min-height: 0 !important; }}
 .timing-chart.hide-tool .chart-bar-tool {{ height: 0 !important; min-height: 0 !important; }}
-.chart-pxx-line {{ position: absolute; left: 0; right: 0; border-top: 1px dashed #999; pointer-events: none; z-index: 1; }}
-.chart-pxx-label {{ position: absolute; right: 4px; top: -14px; font-size: 10px; color: #666; background: rgba(255,255,255,0.85); padding: 0 4px; border-radius: 2px; white-space: nowrap; }}
+.chart-pxx-line {{ position: absolute; left: 0; right: 0; border-top: 1.5px dashed #999; pointer-events: none; z-index: 1; }}
+.chart-pxx-legend {{ display: flex; flex-wrap: wrap; gap: 16px; margin-top: 6px; font-size: 12px; color: #555; }}
+.chart-pxx-legend-item {{ display: flex; align-items: center; gap: 4px; }}
+.chart-pxx-legend-line {{ display: inline-block; width: 16px; border-top: 2px dashed; }}
 .chart-x-label {{ font-size: 9px; color: #999; margin-top: 2px; }}
 .chart-tooltip {{ position: fixed; pointer-events: none; background: #1a1a2e; color: white; padding: 10px 14px; border-radius: 8px; font-size: 13px; line-height: 1.8; z-index: 2000; box-shadow: 0 4px 16px rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.15s; }}
 .chart-tooltip.visible {{ opacity: 1; }}
@@ -485,10 +487,9 @@ INDEX_TEMPLATE = """
                     const val = percentile(sorted, p);
                     const pct = (val / maxVal) * 100;
                     const line = chart.querySelector('.chart-pxx-' + cls);
-                    if (line) {{
-                        line.style.bottom = pct + '%';
-                        line.querySelector('.chart-pxx-label').textContent = cls.toUpperCase() + ': ' + formatMsDuration(val);
-                    }}
+                    if (line) line.style.bottom = pct + '%';
+                    const legendItem = wrapper.querySelector('.chart-pxx-' + cls + ' strong');
+                    if (legendItem) legendItem.textContent = formatMsDuration(val);
                 }});
             }}
         }}
@@ -740,8 +741,10 @@ SESSION_DETAIL_TEMPLATE = """
 .chart-bar-col:hover .chart-bar-llm, .chart-bar-col:hover .chart-bar-tool {{ opacity: 0.8; }}
 .timing-chart.hide-llm .chart-bar-llm {{ height: 0 !important; min-height: 0 !important; }}
 .timing-chart.hide-tool .chart-bar-tool {{ height: 0 !important; min-height: 0 !important; }}
-.chart-pxx-line {{ position: absolute; left: 0; right: 0; border-top: 1px dashed #999; pointer-events: none; z-index: 1; }}
-.chart-pxx-label {{ position: absolute; right: 4px; top: -14px; font-size: 10px; color: #666; background: rgba(255,255,255,0.85); padding: 0 4px; border-radius: 2px; white-space: nowrap; }}
+.chart-pxx-line {{ position: absolute; left: 0; right: 0; border-top: 1.5px dashed #999; pointer-events: none; z-index: 1; }}
+.chart-pxx-legend {{ display: flex; flex-wrap: wrap; gap: 16px; margin-top: 6px; font-size: 12px; color: #555; }}
+.chart-pxx-legend-item {{ display: flex; align-items: center; gap: 4px; }}
+.chart-pxx-legend-line {{ display: inline-block; width: 16px; border-top: 2px dashed; }}
 .chart-x-label {{ font-size: 9px; color: #999; margin-top: 2px; }}
 .chart-tooltip {{ position: fixed; pointer-events: none; background: #1a1a2e; color: white; padding: 10px 14px; border-radius: 8px; font-size: 13px; line-height: 1.8; z-index: 2000; box-shadow: 0 4px 16px rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.15s; }}
 .chart-tooltip.visible {{ opacity: 1; }}
@@ -920,10 +923,9 @@ SESSION_DETAIL_TEMPLATE = """
                     const val = percentile(sorted, p);
                     const pct = (val / maxVal) * 100;
                     const line = chart.querySelector('.chart-pxx-' + cls);
-                    if (line) {{
-                        line.style.bottom = pct + '%';
-                        line.querySelector('.chart-pxx-label').textContent = cls.toUpperCase() + ': ' + formatMsDuration(val);
-                    }}
+                    if (line) line.style.bottom = pct + '%';
+                    const legendItem = wrapper.querySelector('.chart-pxx-' + cls + ' strong');
+                    if (legendItem) legendItem.textContent = formatMsDuration(val);
                 }});
             }}
         }}

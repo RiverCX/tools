@@ -1243,13 +1243,19 @@ class HTMLReporter:
         # 初始 Pxx（LLM+Tool 叠加）
         all_totals = sorted(t.llm_call_duration + t.tool_processing_duration for t in sorted_timings)
         pxx_lines: List[str] = []
+        pxx_legend_items: List[str] = []
+        pxx_colors = {"p50": "#66bb6a", "p90": "#ffa726", "p95": "#ef5350", "p99": "#ab47bc"}
         for label, cls, p in [("P50", "p50", 50), ("P90", "p90", 90), ("P95", "p95", 95), ("P99", "p99", 99)]:
             val = self._percentile(all_totals, p)
             bottom_pct = (val / max_total) * 100 if max_total > 0 else 0
+            color = pxx_colors[cls]
             pxx_lines.append(
-                f'<div class="chart-pxx-line chart-pxx-{cls}" style="bottom:{bottom_pct:.1f}%">'
-                f'<span class="chart-pxx-label">{label}: {self._format_duration(val)}</span>'
-                f'</div>'
+                f'<div class="chart-pxx-line chart-pxx-{cls}" style="bottom:{bottom_pct:.1f}%;border-top-color:{color}"></div>'
+            )
+            pxx_legend_items.append(
+                f'<span class="chart-pxx-legend-item chart-pxx-{cls}">'
+                f'<span class="chart-pxx-legend-line" style="border-top-color:{color}"></span>'
+                f'{label}: <strong>{self._format_duration(val)}</strong></span>'
             )
 
         chart_id = f"chart_{id(timings) % 10000}"
@@ -1264,6 +1270,7 @@ class HTMLReporter:
             f'<div class="chart-legend-color chart-legend-tool"></div>Tool Time</div>'
             '</div>'
             f'<div class="timing-chart{dense_class}">{"".join(bars)}{"".join(pxx_lines)}</div>'
+            f'<div class="chart-pxx-legend">{"".join(pxx_legend_items)}</div>'
             '</div>'
         )
 
