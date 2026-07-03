@@ -1301,7 +1301,7 @@ class HTMLReporter:
 
         chart_height = 200
         bars: List[str] = []
-        duration_dots: List[str] = []
+        line_points: List[str] = []
         for d in chart_data:
             # Input 在下（先渲染=底部），Output 在上（后渲染=顶部）
             input_h = (d["input"] / max_tokens) * chart_height
@@ -1322,18 +1322,28 @@ class HTMLReporter:
                 f'</div></div>'
             )
 
-            if llm_scale > 0 and d["llm_duration"] > 0:
-                dot_bottom = (d["llm_duration"] * llm_scale / max_tokens) * 100
-                duration_dots.append(
-                    f'<div class="chart-duration-dot" '
-                    f'style="left:{((d["seq"] - 0.5) / len(chart_data)) * 100:.1f}%;'
-                    f'bottom:{dot_bottom:.1f}%"></div>'
-                )
+            # 推理时长折线坐标
+            if d["llm_duration"] > 0 and llm_scale > 0:
+                x_pct = ((d["seq"] - 0.5) / len(chart_data)) * 100
+                y_pct = 100 - (d["llm_duration"] * llm_scale / max_tokens) * 100
+                line_points.append(f"{x_pct:.1f},{y_pct:.1f}")
 
         avg_bottom_pct = (avg_total / max_tokens) * 100
-        chart_id = f"token-chart_{id(chain)}_{session_id or 'all'}"
-        chart_id = f"token-chart_{abs(hash(chart_id)) % 100000}"
+        chart_id = f"token-chart_{abs(hash((id(chain), session_id or 'all'))) % 100000}"
         dense_class = " dense" if len(chart_data) > 100 else ""
+
+        # SVG 折线 + 数据点
+        svg_line = ""
+        if line_points:
+            pts = " ".join(line_points)
+            circles = "".join(
+                f'<circle cx="{p.split(",")[0]}" cy="{p.split(",")[1]}" r="0.8" />'
+                for p in line_points
+            )
+            svg_line = (
+                f'<svg class="chart-duration-svg" viewBox="0 0 100 100" preserveAspectRatio="none">'
+                f'<polyline points="{pts}" />{circles}</svg>'
+            )
 
         return (
             f'<div class="timing-chart-wrapper" id="{chart_id}">'
@@ -1352,7 +1362,7 @@ class HTMLReporter:
             f'<div class="chart-avg-line" style="bottom:{avg_bottom_pct:.1f}%" '
             f'data-avg-val="{avg_total:.0f}" data-avg-input="{avg_input:.0f}" data-avg-output="{avg_output:.0f}">'
             f'<span class="chart-avg-line-label">Avg: {avg_total:,.0f} tok/iter</span></div>'
-            f'<div class="chart-duration-line">{"".join(duration_dots)}</div>'
+            f'{svg_line}'
             f'</div>'
             f'<div class="chart-pxx-legend">'
             f'<span class="chart-pxx-legend-item">Avg Input: <strong>{avg_input:,.0f}</strong></span>'

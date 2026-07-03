@@ -207,6 +207,9 @@ INDEX_TEMPLATE = """
 .chart-legend-input {{ background: #66bb6a; }}
 .chart-avg-line {{ position: absolute; left: 0; right: 0; border-top: 1.5px dashed #ffa726; pointer-events: none; z-index: 1; }}
 .chart-avg-line-label {{ position: absolute; right: 4px; top: -14px; font-size: 10px; color: #ffa726; white-space: nowrap; }}
+.chart-duration-svg {{ position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; overflow: visible; }}
+.chart-duration-svg polyline {{ fill: none; stroke: #ef5350; stroke-width: 1.5; vector-effect: non-scaling-stroke; }}
+.chart-duration-svg circle {{ fill: #ef5350; r: 2.5px; vector-effect: non-scaling-stroke; }}
 .chart-legend-line-solid {{ display: inline-block; width: 16px; height: 2px; background: #ef5350; }}
 .chart-tooltip {{ position: fixed; pointer-events: none; background: #1a1a2e; color: white; padding: 10px 14px; border-radius: 8px; font-size: 13px; line-height: 1.8; z-index: 2000; box-shadow: 0 4px 16px rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.15s; }}
 .chart-tooltip.visible {{ opacity: 1; }}
@@ -825,6 +828,9 @@ SESSION_DETAIL_TEMPLATE = """
 .chart-legend-input {{ background: #66bb6a; }}
 .chart-avg-line {{ position: absolute; left: 0; right: 0; border-top: 1.5px dashed #ffa726; pointer-events: none; z-index: 1; }}
 .chart-avg-line-label {{ position: absolute; right: 4px; top: -14px; font-size: 10px; color: #ffa726; white-space: nowrap; }}
+.chart-duration-svg {{ position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; overflow: visible; }}
+.chart-duration-svg polyline {{ fill: none; stroke: #ef5350; stroke-width: 1.5; vector-effect: non-scaling-stroke; }}
+.chart-duration-svg circle {{ fill: #ef5350; r: 2.5px; vector-effect: non-scaling-stroke; }}
 .chart-legend-line-solid {{ display: inline-block; width: 16px; height: 2px; background: #ef5350; }}
 .chart-tooltip {{ position: fixed; pointer-events: none; background: #1a1a2e; color: white; padding: 10px 14px; border-radius: 8px; font-size: 13px; line-height: 1.8; z-index: 2000; box-shadow: 0 4px 16px rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.15s; }}
 .chart-tooltip.visible {{ opacity: 1; }}
