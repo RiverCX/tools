@@ -556,7 +556,7 @@ class ChainAnalyzer:
             s_reasoning_chars = sum(len(r.reasoning_content or "") for r in chain.responses)
             s_content_chars = sum(len(r.content or "") for r in chain.responses)
             iters = chain.total_iterations
-            total_time = chain.total_llm_duration_seconds + chain.total_tool_duration_seconds
+            total_time = (chain.end_time - chain.start_time) if chain.end_time and chain.start_time else 0
             stats.session_stats.append({
                 "session_id": chain.session_id,
                 "model": chain.model_name,

@@ -1358,14 +1358,17 @@ class HTMLReporter:
         avg_llm_overview = stats.total_llm_time_seconds / stats.total_iterations if stats.total_iterations > 0 else 0
         avg_tool_overview = stats.total_tool_time_seconds / stats.total_iterations if stats.total_iterations > 0 else 0
         tps_overview = stats.total_output_tokens / stats.total_llm_time_seconds if stats.total_llm_time_seconds > 0 else 0
+        total_time_overview = stats.total_duration_seconds
         overview = [
             (stats.total_sessions, "Sessions"),
             (stats.total_iterations, "Iterations"),
+            (self._format_duration(total_time_overview), "Total Time"),
             (self._format_duration(stats.total_llm_time_seconds), "LLM Total"),
             (self._format_duration(stats.total_tool_time_seconds), "Tool Total"),
             (self._format_duration(avg_llm_overview), "Avg LLM"),
             (self._format_duration(avg_tool_overview), "Avg Tool"),
             (f"{stats.total_tokens:,}", "Tokens"),
+            (f"{stats.total_output_tokens:,}", "Output Tokens"),
             (f"{tps_overview:.1f} tok/s", "Output tok/s"),
         ]
         for val, label in overview:
@@ -1450,6 +1453,8 @@ class HTMLReporter:
         parts.append("<h3>Tokens</h3>")
         avg_tokens = stats.total_tokens // stats.total_iterations if stats.total_iterations > 0 else 0
         tps = stats.total_output_tokens / stats.total_llm_time_seconds if stats.total_llm_time_seconds > 0 else 0
+        g_reasoning_chars = sum(len(r.reasoning_content or "") for chain in result.sorted_sessions for r in chain.responses)
+        g_content_chars = sum(len(r.content or "") for chain in result.sorted_sessions for r in chain.responses)
         token_rows = [
             ("Input", f"{stats.total_input_tokens:,}"),
             ("Output", f"{stats.total_output_tokens:,}"),
@@ -1457,6 +1462,8 @@ class HTMLReporter:
             ("Cache ⚠", f"{stats.total_cache_tokens:,}"),
             ("Avg per Iteration", f"{avg_tokens:,}"),
             ("Output tok/s", f"{tps:.1f}"),
+            ("Reasoning Chars", f"{g_reasoning_chars:,}"),
+            ("Content Chars", f"{g_content_chars:,}"),
         ]
         for name, val in token_rows:
             parts.append(f'<div class="stat-row"><span class="stat-name">{name}</span><span class="stat-val">{val}</span></div>')
@@ -1531,15 +1538,18 @@ class HTMLReporter:
         avg_llm_s = chain.total_llm_duration_seconds / num_iters if num_iters > 0 else 0
         avg_tool_s = chain.total_tool_duration_seconds / num_iters if num_iters > 0 else 0
         tps_s = s_output / chain.total_llm_duration_seconds if chain.total_llm_duration_seconds > 0 else 0
+        s_total_time = (chain.end_time - chain.start_time) if chain.end_time and chain.start_time else 0
         overview = [
             (num_iters, "Iterations"),
             (len(chain.subagents), "Subagents"),
             (total_tool_calls, "Tool Calls"),
+            (self._format_duration(s_total_time), "Total Time"),
             (self._format_duration(chain.total_llm_duration_seconds), "LLM Total"),
             (self._format_duration(chain.total_tool_duration_seconds), "Tool Total"),
             (self._format_duration(avg_llm_s), "Avg LLM"),
             (self._format_duration(avg_tool_s), "Avg Tool"),
             (f"{s_total:,}", "Tokens"),
+            (f"{s_output:,}", "Output Tokens"),
             (f"{tps_s:.1f} tok/s", "Output tok/s"),
         ]
         for val, label in overview:
@@ -1611,6 +1621,8 @@ class HTMLReporter:
         parts.append("<h3>Tokens</h3>")
         avg_tokens = s_total // num_iters if num_iters > 0 else 0
         tps_s2 = s_output / chain.total_llm_duration_seconds if chain.total_llm_duration_seconds > 0 else 0
+        s_reasoning_chars = sum(len(r.reasoning_content or "") for r in chain.responses)
+        s_content_chars = sum(len(r.content or "") for r in chain.responses)
         token_rows = [
             ("Input", f"{s_input:,}"),
             ("Output", f"{s_output:,}"),
@@ -1618,6 +1630,8 @@ class HTMLReporter:
             ("Cache ⚠", f"{s_cache:,}"),
             ("Avg per Iteration", f"{avg_tokens:,}"),
             ("Output tok/s", f"{tps_s2:.1f}"),
+            ("Reasoning Chars", f"{s_reasoning_chars:,}"),
+            ("Content Chars", f"{s_content_chars:,}"),
         ]
         for name, val in token_rows:
             parts.append(f'<div class="stat-row"><span class="stat-name">{name}</span><span class="stat-val">{val}</span></div>')
