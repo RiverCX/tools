@@ -1355,12 +1355,12 @@ class HTMLReporter:
             all_timings.extend(chain.iteration_timings)
         chart_html = self._render_timing_chart(all_timings)
         if chart_html:
-            parts.append(self._stat_section_html("Timing Distribution", [("", chart_html)]))
+            parts.append(self._stat_section_raw_html("Timing Distribution", chart_html))
 
         # 工具调用统计
         per_tool = self._compute_per_tool_stats(result.sorted_sessions)
         if per_tool:
-            parts.append(self._stat_section_html("Tool Calls", [("", self._render_tool_calls_table(per_tool))]))
+            parts.append(self._stat_section_raw_html("Tool Calls", self._render_tool_calls_table(per_tool)))
 
         # LLM 调用统计
         avg_llm_per_call = stats.total_llm_time_seconds / stats.total_iterations if stats.total_iterations > 0 else 0
@@ -1501,12 +1501,12 @@ class HTMLReporter:
         # 时间分布图
         chart_html = self._render_timing_chart(chain.iteration_timings)
         if chart_html:
-            parts.append(self._stat_section_html("Timing Distribution", [("", chart_html)]))
+            parts.append(self._stat_section_raw_html("Timing Distribution", chart_html))
 
         # 工具调用统计
         per_tool = self._compute_per_tool_stats([chain])
         if per_tool:
-            parts.append(self._stat_section_html("Tool Calls", [("", self._render_tool_calls_table(per_tool))]))
+            parts.append(self._stat_section_raw_html("Tool Calls", self._render_tool_calls_table(per_tool)))
 
         # LLM 调用统计
         avg_llm_per_call = chain.total_llm_duration_seconds / num_iters if num_iters > 0 else 0
@@ -1594,6 +1594,11 @@ class HTMLReporter:
             )
         parts.append('</div>')
         return "\n".join(parts)
+
+    @staticmethod
+    def _stat_section_raw_html(title: str, content: str) -> str:
+        """生成包含原始 HTML 内容的统计区段（不包裹 stat-row）"""
+        return f'<div class="stat-section">\n<h3>{title}</h3>\n{content}\n</div>'
 
     def _format_timestamp(self, timestamp: float) -> str:
         if timestamp == 0:
