@@ -1244,6 +1244,113 @@ class HTMLReporter:
             '</div>'
         )
 
+    def _render_token_chart(
+        self, timings: List[IterationTiming], responses: List[LLMResponse]
+    ) -> str:
+        """渲染 Token 分布堆叠柱状图（Input/Output 堆叠 + 推理时长折线 + 平均线）"""
+        if not timings:
+            return ""
+
+        # 构建 iteration_num → response 查找表
+        resp_lookup: Dict[int, LLMResponse] = {}
+        for r in responses:
+            resp_lookup[r.iteration] = r
+
+        sorted_timings = sorted(
+            timings, key=lambda t: t.request_timestamp if t.request_timestamp > 0 else t.response_timestamp
+        )
+
+        # 计算每轮数据
+        chart_data: List[Dict] = []
+        for i, t in enumerate(sorted_timings, 1):
+            resp = resp_lookup.get(t.iteration_num)
+            input_tok = resp.input_tokens if resp else 0
+            output_tok = resp.output_tokens if resp else 0
+            total_tok = input_tok + output_tok
+            chart_data.append({
+                "seq": i,
+                "input": input_tok,
+                "output": output_tok,
+                "total": total_tok,
+                "llm_duration": t.llm_call_duration,
+            })
+
+        max_tokens = max(d["total"] for d in chart_data)
+        if max_tokens <= 0:
+            return ""
+
+        # 平均值
+        avg_input = sum(d["input"] for d in chart_data) / len(chart_data)
+        avg_output = sum(d["output"] for d in chart_data) / len(chart_data)
+        avg_total = avg_input + avg_output
+
+        # 推理时长归一化到 token 轴（用于折线叠加）
+        max_llm = max(d["llm_duration"] for d in chart_data)
+        llm_scale = max_tokens / max_llm if max_llm > 0 else 0
+
+        chart_height = 200
+        bars: List[str] = []
+        duration_dots: List[str] = []
+        for d in chart_data:
+            output_h = (d["output"] / max_tokens) * chart_height
+            input_h = (d["input"] / max_tokens) * chart_height
+            llm_fmt = self._format_duration(d["llm_duration"])
+
+            bars.append(
+                f'<div class="chart-bar-col" '
+                f'data-seq="{d["seq"]}" data-input="{d["input"]}" data-output="{d["output"]}" '
+                f'data-total="{d["total"]}" data-input-tokens="{d["input"]}" data-output-tokens="{d["output"]}" '
+                f'data-llm-dur="{llm_fmt}" '
+                f'onmouseenter="showChartTooltip(event, this)" '
+                f'onmousemove="moveChartTooltip(event)" '
+                f'onmouseleave="hideChartTooltip()">'
+                f'<div class="chart-bar" style="height:{chart_height}px">'
+                f'<div class="chart-bar-input" style="height:{input_h:.1f}px"></div>'
+                f'<div class="chart-bar-output" style="height:{output_h:.1f}px"></div>'
+                f'</div></div>'
+            )
+
+            # 推理时长折线点位置
+            if llm_scale > 0 and d["llm_duration"] > 0:
+                dot_bottom = (d["llm_duration"] * llm_scale / max_tokens) * 100
+                duration_dots.append(
+                    f'<div class="chart-duration-dot" '
+                    f'style="left:{((d["seq"] - 0.5) / len(chart_data)) * 100:.1f}%;'
+                    f'bottom:{dot_bottom:.1f}%"></div>'
+                )
+
+        # 平均线
+        avg_bottom_pct = (avg_total / max_tokens) * 100
+
+        chart_id = f"token-chart_{id(timings) % 10000}"
+        dense_class = " dense" if len(chart_data) > 100 else ""
+
+        return (
+            f'<div class="timing-chart-wrapper" id="{chart_id}">'
+            '<div class="chart-legend">'
+            f'<div class="chart-legend-item chart-toggle active" data-series="output" '
+            f'onclick="toggleTokenChartSeries(this)">'
+            f'<div class="chart-legend-color chart-legend-output"></div>Output Tokens</div>'
+            f'<div class="chart-legend-item chart-toggle active" data-series="input" '
+            f'onclick="toggleTokenChartSeries(this)">'
+            f'<div class="chart-legend-color chart-legend-input"></div>Input Tokens</div>'
+            f'<div class="chart-legend-item">'
+            f'<span class="chart-legend-line-solid"></span> LLM Duration</div>'
+            '</div>'
+            f'<div class="timing-chart{dense_class}">'
+            f'{"".join(bars)}'
+            f'<div class="chart-avg-line" style="bottom:{avg_bottom_pct:.1f}%" '
+            f'data-avg-val="{avg_total:.0f}" data-avg-input="{avg_input:.0f}" data-avg-output="{avg_output:.0f}">'
+            f'<span class="chart-avg-line-label">Avg: {avg_total:,.0f} tok/iter</span></div>'
+            f'<div class="chart-duration-line">{"".join(duration_dots)}</div>'
+            f'</div>'
+            f'<div class="chart-pxx-legend">'
+            f'<span class="chart-pxx-legend-item">Avg Input: <strong>{avg_input:,.0f}</strong></span>'
+            f'<span class="chart-pxx-legend-item">Avg Output: <strong>{avg_output:,.0f}</strong></span>'
+            f'</div>'
+            '</div>'
+        )
+
     def _compute_per_tool_stats(self, chains: List[LLMChain]) -> Dict[str, Dict]:
         """计算每个工具的调用次数、总耗时、平均耗时。
 
@@ -1351,11 +1458,18 @@ class HTMLReporter:
 
         # 时间分布图
         all_timings = []
+        all_responses = []
         for chain in result.sorted_sessions:
             all_timings.extend(chain.iteration_timings)
+            all_responses.extend(chain.responses)
         chart_html = self._render_timing_chart(all_timings)
         if chart_html:
             parts.append(self._stat_section_raw_html("Timing Distribution", chart_html))
+
+        # Token 分布图
+        token_chart_html = self._render_token_chart(all_timings, all_responses)
+        if token_chart_html:
+            parts.append(self._stat_section_raw_html("Token Distribution", token_chart_html))
 
         # 工具调用统计
         per_tool = self._compute_per_tool_stats(result.sorted_sessions)
@@ -1502,6 +1616,11 @@ class HTMLReporter:
         chart_html = self._render_timing_chart(chain.iteration_timings)
         if chart_html:
             parts.append(self._stat_section_raw_html("Timing Distribution", chart_html))
+
+        # Token 分布图
+        token_chart_html = self._render_token_chart(chain.iteration_timings, chain.responses)
+        if token_chart_html:
+            parts.append(self._stat_section_raw_html("Token Distribution", token_chart_html))
 
         # 工具调用统计
         per_tool = self._compute_per_tool_stats([chain])

@@ -197,6 +197,17 @@ INDEX_TEMPLATE = """
 .chart-pxx-legend-item {{ display: flex; align-items: center; gap: 4px; }}
 .chart-pxx-legend-line {{ display: inline-block; width: 16px; border-top: 2px dashed; }}
 .chart-x-label {{ font-size: 9px; color: #999; margin-top: 2px; }}
+/* Token Chart */
+.chart-bar-output {{ background: #4a90d9; border-radius: 2px 2px 0 0; min-height: 1px; transition: opacity 0.15s, height 0.3s; }}
+.chart-bar-input {{ background: #66bb6a; border-radius: 2px 2px 0 0; min-height: 1px; transition: opacity 0.15s, height 0.3s; }}
+.chart-bar-col:hover .chart-bar-output, .chart-bar-col:hover .chart-bar-input {{ opacity: 0.8; }}
+.timing-chart.hide-output .chart-bar-output {{ height: 0 !important; min-height: 0 !important; }}
+.timing-chart.hide-input .chart-bar-input {{ height: 0 !important; min-height: 0 !important; }}
+.chart-legend-output {{ background: #4a90d9; }}
+.chart-legend-input {{ background: #66bb6a; }}
+.chart-avg-line {{ position: absolute; left: 0; right: 0; border-top: 1.5px dashed #ffa726; pointer-events: none; z-index: 1; }}
+.chart-avg-line-label {{ position: absolute; right: 4px; top: -14px; font-size: 10px; color: #ffa726; white-space: nowrap; }}
+.chart-legend-line-solid {{ display: inline-block; width: 16px; height: 2px; background: #ef5350; }}
 .chart-tooltip {{ position: fixed; pointer-events: none; background: #1a1a2e; color: white; padding: 10px 14px; border-radius: 8px; font-size: 13px; line-height: 1.8; z-index: 2000; box-shadow: 0 4px 16px rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.15s; }}
 .chart-tooltip.visible {{ opacity: 1; }}
 .chart-tooltip .tt-name {{ font-weight: bold; color: #82b1ff; margin-bottom: 2px; }}
@@ -423,15 +434,31 @@ INDEX_TEMPLATE = """
             const tt = document.getElementById('chartTooltip');
             if (!tt) return;
             const seq = el.dataset.seq;
-            const llm = el.dataset.llm;
-            const tool = el.dataset.tool;
-            const total = el.dataset.total;
-            tt.innerHTML = `
-                <div class="tt-name">#${{seq}}</div>
-                <div class="tt-row"><span class="tt-label">LLM Time</span><span class="tt-value">${{llm}}</span></div>
-                <div class="tt-row"><span class="tt-label">Tool Time</span><span class="tt-value">${{tool}}</span></div>
-                <div class="tt-row"><span class="tt-label">Total</span><span class="tt-value">${{total}}</span></div>
-            `;
+            if (el.dataset.input !== undefined) {{
+                // Token chart
+                const input = Number(el.dataset.input).toLocaleString();
+                const output = Number(el.dataset.output).toLocaleString();
+                const total = Number(el.dataset.total).toLocaleString();
+                const llmDur = el.dataset.llmDur || '';
+                tt.innerHTML = `
+                    <div class="tt-name">#${{seq}}</div>
+                    <div class="tt-row"><span class="tt-label">Input Tokens</span><span class="tt-value">${{input}}</span></div>
+                    <div class="tt-row"><span class="tt-label">Output Tokens</span><span class="tt-value">${{output}}</span></div>
+                    <div class="tt-row"><span class="tt-label">Total Tokens</span><span class="tt-value">${{total}}</span></div>
+                    <div class="tt-row"><span class="tt-label">LLM Duration</span><span class="tt-value">${{llmDur}}</span></div>
+                `;
+            }} else {{
+                // Timing chart
+                const llm = el.dataset.llm;
+                const tool = el.dataset.tool;
+                const total = el.dataset.total;
+                tt.innerHTML = `
+                    <div class="tt-name">#${{seq}}</div>
+                    <div class="tt-row"><span class="tt-label">LLM Time</span><span class="tt-value">${{llm}}</span></div>
+                    <div class="tt-row"><span class="tt-label">Tool Time</span><span class="tt-value">${{tool}}</span></div>
+                    <div class="tt-row"><span class="tt-label">Total</span><span class="tt-value">${{total}}</span></div>
+                `;
+            }}
             tt.style.left = (event.clientX + 12) + 'px';
             tt.style.top = (event.clientY - 10) + 'px';
             tt.classList.add('visible');
@@ -491,6 +518,48 @@ INDEX_TEMPLATE = """
                     const legendItem = wrapper.querySelector('.chart-pxx-' + cls + ' strong');
                     if (legendItem) legendItem.textContent = formatMsDuration(val);
                 }});
+            }}
+        }}
+        function toggleTokenChartSeries(el) {{
+            const series = el.dataset.series;
+            el.classList.toggle('active');
+            const wrapper = el.closest('.timing-chart-wrapper');
+            const chart = wrapper ? wrapper.querySelector('.timing-chart') : null;
+            if (!chart) return;
+            const showOutput = wrapper.querySelector('[data-series="output"]').classList.contains('active');
+            const showInput = wrapper.querySelector('[data-series="input"]').classList.contains('active');
+            chart.classList.toggle('hide-output', !showOutput);
+            chart.classList.toggle('hide-input', !showInput);
+
+            const cols = chart.querySelectorAll('.chart-bar-col');
+            const chartH = 200;
+            let maxVal = 0;
+            const vals = [];
+            cols.forEach(col => {{
+                const o = parseInt(col.dataset.outputTokens) || 0;
+                const inp = parseInt(col.dataset.inputTokens) || 0;
+                const v = (showOutput ? o : 0) + (showInput ? inp : 0);
+                vals.push({{o, i: inp, v}});
+                if (v > maxVal) maxVal = v;
+            }});
+            if (maxVal <= 0) maxVal = 1;
+
+            cols.forEach((col, idx) => {{
+                const outBar = col.querySelector('.chart-bar-output');
+                const inBar = col.querySelector('.chart-bar-input');
+                const d = vals[idx];
+                outBar.style.height = ((d.o / maxVal) * chartH) + 'px';
+                inBar.style.height = ((d.i / maxVal) * chartH) + 'px';
+                col.dataset.total = (d.o + d.i).toLocaleString();
+            }});
+
+            // Update avg line position
+            const avgLine = chart.querySelector('.chart-avg-line');
+            if (avgLine) {{
+                const avgVal = parseFloat(avgLine.dataset.avgVal) || 0;
+                const visibleAvg = (showOutput ? (parseFloat(avgLine.dataset.avgOutput) || 0) : 0)
+                                 + (showInput ? (parseFloat(avgLine.dataset.avgInput) || 0) : 0);
+                avgLine.style.bottom = ((visibleAvg / maxVal) * 100) + '%';
             }}
         }}
         function percentile(sorted, p) {{
@@ -746,6 +815,17 @@ SESSION_DETAIL_TEMPLATE = """
 .chart-pxx-legend-item {{ display: flex; align-items: center; gap: 4px; }}
 .chart-pxx-legend-line {{ display: inline-block; width: 16px; border-top: 2px dashed; }}
 .chart-x-label {{ font-size: 9px; color: #999; margin-top: 2px; }}
+/* Token Chart */
+.chart-bar-output {{ background: #4a90d9; border-radius: 2px 2px 0 0; min-height: 1px; transition: opacity 0.15s, height 0.3s; }}
+.chart-bar-input {{ background: #66bb6a; border-radius: 2px 2px 0 0; min-height: 1px; transition: opacity 0.15s, height 0.3s; }}
+.chart-bar-col:hover .chart-bar-output, .chart-bar-col:hover .chart-bar-input {{ opacity: 0.8; }}
+.timing-chart.hide-output .chart-bar-output {{ height: 0 !important; min-height: 0 !important; }}
+.timing-chart.hide-input .chart-bar-input {{ height: 0 !important; min-height: 0 !important; }}
+.chart-legend-output {{ background: #4a90d9; }}
+.chart-legend-input {{ background: #66bb6a; }}
+.chart-avg-line {{ position: absolute; left: 0; right: 0; border-top: 1.5px dashed #ffa726; pointer-events: none; z-index: 1; }}
+.chart-avg-line-label {{ position: absolute; right: 4px; top: -14px; font-size: 10px; color: #ffa726; white-space: nowrap; }}
+.chart-legend-line-solid {{ display: inline-block; width: 16px; height: 2px; background: #ef5350; }}
 .chart-tooltip {{ position: fixed; pointer-events: none; background: #1a1a2e; color: white; padding: 10px 14px; border-radius: 8px; font-size: 13px; line-height: 1.8; z-index: 2000; box-shadow: 0 4px 16px rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.15s; }}
 .chart-tooltip.visible {{ opacity: 1; }}
 .chart-tooltip .tt-name {{ font-weight: bold; color: #82b1ff; margin-bottom: 2px; }}
@@ -859,15 +939,31 @@ SESSION_DETAIL_TEMPLATE = """
             const tt = document.getElementById('chartTooltip');
             if (!tt) return;
             const seq = el.dataset.seq;
-            const llm = el.dataset.llm;
-            const tool = el.dataset.tool;
-            const total = el.dataset.total;
-            tt.innerHTML = `
-                <div class="tt-name">#${{seq}}</div>
-                <div class="tt-row"><span class="tt-label">LLM Time</span><span class="tt-value">${{llm}}</span></div>
-                <div class="tt-row"><span class="tt-label">Tool Time</span><span class="tt-value">${{tool}}</span></div>
-                <div class="tt-row"><span class="tt-label">Total</span><span class="tt-value">${{total}}</span></div>
-            `;
+            if (el.dataset.input !== undefined) {{
+                // Token chart
+                const input = Number(el.dataset.input).toLocaleString();
+                const output = Number(el.dataset.output).toLocaleString();
+                const total = Number(el.dataset.total).toLocaleString();
+                const llmDur = el.dataset.llmDur || '';
+                tt.innerHTML = `
+                    <div class="tt-name">#${{seq}}</div>
+                    <div class="tt-row"><span class="tt-label">Input Tokens</span><span class="tt-value">${{input}}</span></div>
+                    <div class="tt-row"><span class="tt-label">Output Tokens</span><span class="tt-value">${{output}}</span></div>
+                    <div class="tt-row"><span class="tt-label">Total Tokens</span><span class="tt-value">${{total}}</span></div>
+                    <div class="tt-row"><span class="tt-label">LLM Duration</span><span class="tt-value">${{llmDur}}</span></div>
+                `;
+            }} else {{
+                // Timing chart
+                const llm = el.dataset.llm;
+                const tool = el.dataset.tool;
+                const total = el.dataset.total;
+                tt.innerHTML = `
+                    <div class="tt-name">#${{seq}}</div>
+                    <div class="tt-row"><span class="tt-label">LLM Time</span><span class="tt-value">${{llm}}</span></div>
+                    <div class="tt-row"><span class="tt-label">Tool Time</span><span class="tt-value">${{tool}}</span></div>
+                    <div class="tt-row"><span class="tt-label">Total</span><span class="tt-value">${{total}}</span></div>
+                `;
+            }}
             tt.style.left = (event.clientX + 12) + 'px';
             tt.style.top = (event.clientY - 10) + 'px';
             tt.classList.add('visible');
@@ -927,6 +1023,48 @@ SESSION_DETAIL_TEMPLATE = """
                     const legendItem = wrapper.querySelector('.chart-pxx-' + cls + ' strong');
                     if (legendItem) legendItem.textContent = formatMsDuration(val);
                 }});
+            }}
+        }}
+        function toggleTokenChartSeries(el) {{
+            const series = el.dataset.series;
+            el.classList.toggle('active');
+            const wrapper = el.closest('.timing-chart-wrapper');
+            const chart = wrapper ? wrapper.querySelector('.timing-chart') : null;
+            if (!chart) return;
+            const showOutput = wrapper.querySelector('[data-series="output"]').classList.contains('active');
+            const showInput = wrapper.querySelector('[data-series="input"]').classList.contains('active');
+            chart.classList.toggle('hide-output', !showOutput);
+            chart.classList.toggle('hide-input', !showInput);
+
+            const cols = chart.querySelectorAll('.chart-bar-col');
+            const chartH = 200;
+            let maxVal = 0;
+            const vals = [];
+            cols.forEach(col => {{
+                const o = parseInt(col.dataset.outputTokens) || 0;
+                const inp = parseInt(col.dataset.inputTokens) || 0;
+                const v = (showOutput ? o : 0) + (showInput ? inp : 0);
+                vals.push({{o, i: inp, v}});
+                if (v > maxVal) maxVal = v;
+            }});
+            if (maxVal <= 0) maxVal = 1;
+
+            cols.forEach((col, idx) => {{
+                const outBar = col.querySelector('.chart-bar-output');
+                const inBar = col.querySelector('.chart-bar-input');
+                const d = vals[idx];
+                outBar.style.height = ((d.o / maxVal) * chartH) + 'px';
+                inBar.style.height = ((d.i / maxVal) * chartH) + 'px';
+                col.dataset.total = (d.o + d.i).toLocaleString();
+            }});
+
+            // Update avg line position
+            const avgLine = chart.querySelector('.chart-avg-line');
+            if (avgLine) {{
+                const avgVal = parseFloat(avgLine.dataset.avgVal) || 0;
+                const visibleAvg = (showOutput ? (parseFloat(avgLine.dataset.avgOutput) || 0) : 0)
+                                 + (showInput ? (parseFloat(avgLine.dataset.avgInput) || 0) : 0);
+                avgLine.style.bottom = ((visibleAvg / maxVal) * 100) + '%';
             }}
         }}
         function percentile(sorted, p) {{
