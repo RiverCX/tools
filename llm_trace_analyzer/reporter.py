@@ -1340,16 +1340,11 @@ class HTMLReporter:
             '<td style="padding:6px 12px">LLM 返回结果到下一轮请求之间的间隔时间。'
             '<span style="color:#d32f2f">⚠ 此数值不仅包含工具本身的执行时间，'
             '还包含框架调度、上下文引擎处理、子 Agent 启动等开销，可能明显大于工具实际执行时间。</span></td></tr>'
-            '<tr style="border-bottom:1px solid #e0e0e0"><td style="padding:6px 12px;font-weight:600;vertical-align:top">单工具耗时</td>'
-            '<td style="padding:6px 12px">将每次迭代的 Tool 耗时均分给该轮所有工具调用。'
-            '<span style="color:#d32f2f">⚠ 这是近似值，各工具的实际执行时间可能差异较大。</span></td></tr>'
-            '<tr style="border-bottom:1px solid #e0e0e0"><td style="padding:6px 12px;font-weight:600;vertical-align:top">Tokens/sec</td>'
-            '<td style="padding:6px 12px">输出 Token 数 ÷ 总 LLM 耗时，反映模型生成速度，并非单次调用的速率。</td></tr>'
-            '<tr style="border-bottom:1px solid #e0e0e0"><td style="padding:6px 12px;font-weight:600;vertical-align:top">P50 / P90 / P95 / P99</td>'
-            '<td style="padding:6px 12px">按迭代粒度的耗时百分位值，例如 P90 表示 90% 的迭代耗时低于此值。</td></tr>'
-            '<tr><td style="padding:6px 12px;font-weight:600;vertical-align:top">时间分布图</td>'
-            '<td style="padding:6px 12px">每个柱代表一次迭代，按启动时间排列。蓝色 = LLM 耗时，橙色 = Tool 耗时。'
-            '点击图例可切换显示/隐藏对应系列，Pxx 参考线会根据当前可见系列动态重算。</td></tr>'
+            '<tr><td style="padding:6px 12px;font-weight:600;vertical-align:top">Cache ⚠</td>'
+            '<td style="padding:6px 12px"><span style="color:#d32f2f">⚠ 当前数据不准确。</span>'
+            '框架仅在同步调用（invoke）模式下记录 cache_tokens，'
+            '流式调用（stream）模式下该字段始终为 0。'
+            '实际缓存使用量远高于当前显示值，需等待框架修复后数据才可信。</td></tr>'
             '</table></div></div>'
         )
 
@@ -1370,9 +1365,8 @@ class HTMLReporter:
             (self._format_duration(stats.total_tool_time_seconds), "Tool Total"),
             (self._format_duration(avg_llm_overview), "Avg LLM"),
             (self._format_duration(avg_tool_overview), "Avg Tool"),
-            (f"{stats.total_tokens:,}", "Total Tokens"),
-            (f"{stats.total_cache_tokens:,}", "Cache Tokens"),
-            (f"{tps_overview:.1f} tok/s", "Tokens/sec"),
+            (f"{stats.total_tokens:,}", "Tokens"),
+            (f"{tps_overview:.1f} tok/s", "Output tok/s"),
         ]
         for val, label in overview:
             parts.append(f'<div class="stat-card"><div class="stat-value">{val}</div><div class="stat-label">{label}</div></div>')
@@ -1454,17 +1448,15 @@ class HTMLReporter:
         # Token 统计
         parts.append('<div class="stat-section">')
         parts.append("<h3>Tokens</h3>")
-        cache_rate = (stats.total_cache_tokens / stats.total_tokens * 100) if stats.total_tokens > 0 else 0
         avg_tokens = stats.total_tokens // stats.total_iterations if stats.total_iterations > 0 else 0
         tps = stats.total_output_tokens / stats.total_llm_time_seconds if stats.total_llm_time_seconds > 0 else 0
         token_rows = [
             ("Input", f"{stats.total_input_tokens:,}"),
             ("Output", f"{stats.total_output_tokens:,}"),
-            ("Cache", f"{stats.total_cache_tokens:,}"),
             ("Total", f"{stats.total_tokens:,}"),
-            ("Cache Hit Rate", f"{cache_rate:.1f}%"),
+            ("Cache ⚠", f"{stats.total_cache_tokens:,}"),
             ("Avg per Iteration", f"{avg_tokens:,}"),
-            ("Tokens/sec", f"{tps:.1f}"),
+            ("Output tok/s", f"{tps:.1f}"),
         ]
         for name, val in token_rows:
             parts.append(f'<div class="stat-row"><span class="stat-name">{name}</span><span class="stat-val">{val}</span></div>')
@@ -1547,9 +1539,8 @@ class HTMLReporter:
             (self._format_duration(chain.total_tool_duration_seconds), "Tool Total"),
             (self._format_duration(avg_llm_s), "Avg LLM"),
             (self._format_duration(avg_tool_s), "Avg Tool"),
-            (f"{s_total:,}", "Total Tokens"),
-            (f"{s_cache:,}", "Cache Tokens"),
-            (f"{tps_s:.1f} tok/s", "Tokens/sec"),
+            (f"{s_total:,}", "Tokens"),
+            (f"{tps_s:.1f} tok/s", "Output tok/s"),
         ]
         for val, label in overview:
             parts.append(f'<div class="stat-card"><div class="stat-value">{val}</div><div class="stat-label">{label}</div></div>')
@@ -1618,17 +1609,15 @@ class HTMLReporter:
         # Token 统计
         parts.append('<div class="stat-section">')
         parts.append("<h3>Tokens</h3>")
-        cache_rate = (s_cache / s_total * 100) if s_total > 0 else 0
         avg_tokens = s_total // num_iters if num_iters > 0 else 0
         tps_s2 = s_output / chain.total_llm_duration_seconds if chain.total_llm_duration_seconds > 0 else 0
         token_rows = [
             ("Input", f"{s_input:,}"),
             ("Output", f"{s_output:,}"),
-            ("Cache", f"{s_cache:,}"),
             ("Total", f"{s_total:,}"),
-            ("Cache Hit Rate", f"{cache_rate:.1f}%"),
+            ("Cache ⚠", f"{s_cache:,}"),
             ("Avg per Iteration", f"{avg_tokens:,}"),
-            ("Tokens/sec", f"{tps_s2:.1f}"),
+            ("Output tok/s", f"{tps_s2:.1f}"),
         ]
         for name, val in token_rows:
             parts.append(f'<div class="stat-row"><span class="stat-name">{name}</span><span class="stat-val">{val}</span></div>')

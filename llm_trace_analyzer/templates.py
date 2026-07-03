@@ -140,6 +140,7 @@ INDEX_TEMPLATE = """
 .compare-table th.baseline {{ background: #2d6bb4; position: relative; }}
 .compare-table th.baseline::after {{ content: ' (baseline)'; font-size: 10px; opacity: 0.8; }}
 .compare-table td {{ padding: 10px 12px; border-bottom: 1px solid #e0e0e0; font-size: 13px; }}
+.compare-table td:first-child {{ width: 130px; white-space: nowrap; }}
 .compare-table tr:hover {{ background: #f8f9fa; }}
 .delta-pos {{ color: #388e3c; font-size: 12px; margin-left: 4px; }}
 .delta-neg {{ color: #d32f2f; font-size: 12px; margin-left: 4px; }}
@@ -330,7 +331,7 @@ INDEX_TEMPLATE = """
                 ['Avg Tool', 'avg_tool_time', 'time'],
                 ['Total Tokens', 'tokens', 'number'],
                 ['Output Tokens', 'output_tokens', 'number'],
-                ['Cache Tokens', 'cache_tokens', 'number'],
+                ['Cache Tokens ⚠', 'cache_tokens', 'number'],
                 ['Output tok/s', 'tokens_per_sec', 'rate'],
                 ['Tool Calls', 'tool_calls', 'number'],
             ];
