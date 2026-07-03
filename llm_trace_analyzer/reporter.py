@@ -1432,15 +1432,19 @@ class HTMLReporter:
         """计算每个工具的调用次数、总耗时、平均耗时。
 
         将每次迭代的 tool_processing_duration 均分给该迭代的所有工具调用。
+        通过 (session_id, response_timestamp) 匹配 timing 与 response。
         """
         per_tool: Dict[str, Dict] = {}
         for chain in chains:
-            timing_map = {t.iteration_num: t.tool_processing_duration for t in chain.iteration_timings}
+            timing_map: Dict[tuple, float] = {}
+            for t in chain.iteration_timings:
+                if t.response_timestamp > 0:
+                    timing_map[(t.session_id, round(t.response_timestamp, 3))] = t.tool_processing_duration
             for resp in chain.responses:
                 if not resp.tool_calls:
                     continue
                 n = len(resp.tool_calls)
-                duration = timing_map.get(resp.iteration, 0)
+                duration = timing_map.get((resp.session_id, round(resp.timestamp, 3)), 0)
                 per_call = duration / n if n > 0 else 0
                 for tc in resp.tool_calls:
                     name = self._extract_tool_name(tc) or "unknown"
