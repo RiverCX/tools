@@ -1517,9 +1517,12 @@ class HTMLReporter:
         avg_llm_overview = stats.total_llm_time_seconds / stats.total_iterations if stats.total_iterations > 0 else 0
         avg_tool_overview = stats.total_tool_time_seconds / stats.total_iterations if stats.total_iterations > 0 else 0
         tps_overview = stats.total_output_tokens / stats.total_llm_time_seconds if stats.total_llm_time_seconds > 0 else 0
+        total_subagents = sum(len(chain.subagents) for chain in result.sorted_sessions)
         parts.append(self._stat_cards_html([
             (stats.total_sessions, "Sessions"),
             (stats.total_iterations, "Iterations"),
+            (total_subagents, "SubAgents"),
+            (f"{stats.total_tool_calls:,}", "Tool Calls"),
             (self._format_duration(stats.total_duration_seconds), "Total Time"),
             (self._format_duration(stats.total_llm_time_seconds), "LLM Total"),
             (self._format_duration(stats.total_tool_time_seconds), "Tool Total"),
