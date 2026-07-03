@@ -25,7 +25,7 @@ class TestHTMLReporter:
         loader = LogLoader(str(SAMPLE_LOG))
         traces = loader.load()
         parser = TraceParser(traces)
-        requests, responses = parser.parse()
+        requests, responses, _system_metrics = parser.parse()
 
         analyzer = ChainAnalyzer(requests, responses)
         result = analyzer.analyze()
@@ -72,7 +72,7 @@ class TestHTMLReporter:
             # 检查基本内容
             assert "<!DOCTYPE html>" in content
             assert EXPECTED_MODEL_NAME in content
-            assert "Timing Overview" in content or "timing-panel" in content
+            assert "timing-panel" in content
 
     def test_short_session_id(self):
         """测试 session_id 缩短"""
@@ -128,7 +128,7 @@ class TestHTMLReporter:
         chain = report_data.sessions.get(EXPECTED_SESSION_ID)
         if chain:
             reporter = HTMLReporter(str(SAMPLE_LOG))
-            iterations_html = reporter._generate_iterations_html(chain)
+            iterations_html = reporter._render_agent_flow(chain.session_id, chain)
 
             # 应包含迭代块
             assert "iteration-block" in iterations_html
@@ -138,10 +138,18 @@ class TestHTMLReporter:
         chain = report_data.sessions.get(EXPECTED_SESSION_ID)
         if chain and chain.subagents:
             reporter = HTMLReporter(str(SAMPLE_LOG))
-            tree_html = reporter._generate_subagents_tree_html(chain)
+            # 构建 children_by_session 映射
+            for sa in chain.subagents:
+                parent_sid = reporter._get_parent_session_id(sa.session_id, chain)
+                if parent_sid not in reporter._children_by_session:
+                    reporter._children_by_session[parent_sid] = []
+                reporter._children_by_session[parent_sid].append(sa)
 
-            # 应包含 subagent 节点
-            assert "subagent-node" in tree_html or "Subagents" in tree_html
+            # 渲染 subagent 块
+            for sa in chain.subagents:
+                tree_html = reporter._render_subagent_block(sa, chain)
+                # 应包含 subagent 标记
+                assert "agent-block" in tree_html or "subagent" in tree_html
 
 
 class TestHTMLReporterTemplates:

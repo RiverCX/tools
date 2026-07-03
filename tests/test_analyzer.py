@@ -25,7 +25,7 @@ class TestChainAnalyzer:
         loader = LogLoader(str(SAMPLE_LOG))
         traces = loader.load()
         parser = TraceParser(traces)
-        requests, responses = parser.parse()
+        requests, responses, _system_metrics = parser.parse()
 
         analyzer = ChainAnalyzer(requests, responses)
         return analyzer.analyze()
@@ -126,7 +126,7 @@ class TestChainAnalyzerSubagentDepth:
         loader = LogLoader(str(SAMPLE_LOG))
         traces = loader.load()
         parser = TraceParser(traces)
-        requests, responses = parser.parse()
+        requests, responses, _system_metrics = parser.parse()
 
         return ChainAnalyzer(requests, responses)
 
@@ -138,7 +138,7 @@ class TestChainAnalyzerSubagentDepth:
 
         assert depth >= 0
         assert len(chain_path) > 0
-        assert "Parent" in chain_path or "Sub" in chain_path
+        assert "Main" in chain_path or any("Sub" in p for p in chain_path)
 
     def test_fork_agent_depth(self, analyzer):
         """测试 fork_agent 深度"""
@@ -153,7 +153,7 @@ class TestChainAnalyzerSubagentDepth:
     def test_format_chain_label(self, analyzer):
         """测试链路标签格式化"""
         chain_path = ["Parent", "Sub[ade2a651]", "Fork[0e4cf63b]"]
-        label = analyzer._format_chain_label(chain_path, 2)
+        label = analyzer._format_chain_label(chain_path)
 
         assert "→" in label
         assert "Parent" in label
@@ -179,7 +179,7 @@ class TestChainAnalyzerTiming:
         loader = LogLoader(str(SAMPLE_LOG))
         traces = loader.load()
         parser = TraceParser(traces)
-        requests, responses = parser.parse()
+        requests, responses, _system_metrics = parser.parse()
 
         analyzer = ChainAnalyzer(requests, responses)
         result = analyzer.analyze()

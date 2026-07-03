@@ -8,6 +8,10 @@ from typing import Any, Dict, List, Optional, Tuple
 from .constants import TraceEventType
 from .models import LLMRequest, LLMResponse, SystemMetrics
 
+# 预编译 usage_metadata 正则
+_USAGE_INT_NAME_RE = re.compile(r'(input_tokens|output_tokens|total_tokens|cache_tokens)=(\d+)')
+_USAGE_FLOAT_NAME_RE = re.compile(r'(input_cost|output_cost|total_cost)=([\d.]+)')
+
 
 class TraceParser:
     def __init__(self, traces: List[Dict[str, Any]]):
@@ -302,20 +306,11 @@ class TraceParser:
         if not usage_str:
             return {}
 
-        result = {}
-        # 提取数值字段
-        int_fields = ["input_tokens", "output_tokens", "total_tokens", "cache_tokens"]
-        float_fields = ["input_cost", "output_cost", "total_cost"]
-
-        for field in int_fields:
-            match = re.search(rf"{field}=(\d+)", usage_str)
-            if match:
-                result[field] = int(match.group(1))
-
-        for field in float_fields:
-            match = re.search(rf"{field}=([\d.]+)", usage_str)
-            if match:
-                result[field] = float(match.group(1))
+        result: Dict[str, Any] = {}
+        for match in _USAGE_INT_NAME_RE.finditer(usage_str):
+            result[match.group(1)] = int(match.group(2))
+        for match in _USAGE_FLOAT_NAME_RE.finditer(usage_str):
+            result[match.group(1)] = float(match.group(2))
 
         return result
 

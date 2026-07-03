@@ -64,7 +64,7 @@ def traces(loader):
 def parser_data(traces):
     """解析数据 fixture"""
     parser = TraceParser(traces)
-    requests, responses = parser.parse()
+    requests, responses, _system_metrics = parser.parse()
     return requests, responses
 
 

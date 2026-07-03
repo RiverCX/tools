@@ -4,9 +4,30 @@ import json
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from .constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FILE_FALLBACK, DEFAULT_LOGS_DIR, TRACE_MARKER
+
+# 预编译正则表达式（模块级常量）
+_TRACE_BODY_PATTERN = (
+    r"event=(\w+)\s+"
+    r"(?:event_id='[^']*'\s+)?"
+    r"session_id='([^']*)'\s+"
+    r"request_id='([^']*)'\s+"
+    r"iteration=(\d+)\s+"
+    r"model_name='([^']*)'\s+"
+    r"(?:body_part=(\d+/\d+)\s+)?"
+    r"(?:reasoning_seq=(\d+)\s+)?"
+    r"body=(.*)$"
+)
+
+JSON_LINE_PATTERN = re.compile(r"^\[LLM_IO_TRACE\]\s+" + _TRACE_BODY_PATTERN)
+LOG_LINE_PATTERN = re.compile(
+    r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)\s+"
+    r"\[\d+\]\s+DEBUG\s+.*?"
+    r"\[LLM_IO_TRACE\]\s+" + _TRACE_BODY_PATTERN
+)
+ROLLOVER_PATTERN = re.compile(r'^full_\d{8}_\d{6}\.log$')
 
 
 def find_rollover_files(log_path: Path) -> List[Path]:
@@ -21,12 +42,10 @@ def find_rollover_files(log_path: Path) -> List[Path]:
     parent_dir = log_path.parent
 
     # 查找所有匹配 full_YYYYMMDD_HHMMSS.log 或 full.log 的文件
-    rollover_pattern = re.compile(r'^full_\d{8}_\d{6}\.log$')
-
     all_files = []
     for file_path in parent_dir.glob('full*.log'):
         # 只匹配 full.log 或 full_YYYYMMDD_HHMMSS.log
-        if file_path.name == 'full.log' or rollover_pattern.match(file_path.name):
+        if file_path.name == 'full.log' or ROLLOVER_PATTERN.match(file_path.name):
             all_files.append(file_path)
 
     # 按文件名排序（时间戳在文件名中，排序后即为时间顺序）
@@ -75,18 +94,6 @@ class LogLoader:
 
     def _parse_json_file(self, f) -> List[Dict[str, Any]]:
         traces: List[Dict[str, Any]] = []
-        pattern = re.compile(
-            r"^\[LLM_IO_TRACE\]\s+"
-            r"event=(\w+)\s+"
-            r"(?:event_id='[^']*'\s+)?"
-            r"session_id='([^']*)'\s+"
-            r"request_id='([^']*)'\s+"
-            r"iteration=(\d+)\s+"
-            r"model_name='([^']*)'\s+"
-            r"(?:body_part=(\d+/\d+)\s+)?"
-            r"(?:reasoning_seq=(\d+)\s+)?"
-            r"body=(.*)$"
-        )
 
         for line in f:
             line = line.strip()
@@ -102,107 +109,69 @@ class LogLoader:
             if TRACE_MARKER not in message:
                 continue
 
-            match = pattern.match(message)
+            match = JSON_LINE_PATTERN.match(message)
             if match:
-                trace = self._extract_trace_from_match(match, entry)
+                timestamp = self._parse_json_timestamp(entry)
+                trace = self._extract_trace_fields(match, timestamp, group_offset=0)
                 traces.append(trace)
 
         return traces
 
     def _parse_log_file(self, f) -> List[Dict[str, Any]]:
         traces: List[Dict[str, Any]] = []
-        pattern = re.compile(
-            r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)\s+"
-            r"\[\d+\]\s+DEBUG\s+.*?"
-            r"\[LLM_IO_TRACE\]\s+"
-            r"event=(\w+)\s+"
-            r"(?:event_id='[^']*'\s+)?"
-            r"session_id='([^']*)'\s+"
-            r"request_id='([^']*)'\s+"
-            r"iteration=(\d+)\s+"
-            r"model_name='([^']*)'\s+"
-            r"(?:body_part=(\d+/\d+)\s+)?"
-            r"(?:reasoning_seq=(\d+)\s+)?"
-            r"body=(.*)$"
-        )
 
         for line in f:
             line = line.strip()
             if TRACE_MARKER not in line:
                 continue
 
-            match = pattern.match(line)
+            match = LOG_LINE_PATTERN.match(line)
             if match:
-                trace = self._extract_trace(match)
+                timestamp_str = match.group(1)
+                try:
+                    timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S.%f").timestamp()
+                except ValueError:
+                    timestamp = 0.0
+                trace = self._extract_trace_fields(match, timestamp, group_offset=1)
                 traces.append(trace)
 
         return traces
 
-    def _extract_trace_from_match(self, match, entry: Dict[str, Any]) -> Dict[str, Any]:
-        from datetime import datetime
-
+    @staticmethod
+    def _parse_json_timestamp(entry: Dict[str, Any]) -> float:
+        """从 JSON 日志条目中解析时间戳"""
         timestamp_str = entry.get("timestamp", "")
         if timestamp_str:
             try:
-                timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S.%f").timestamp()
+                return datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S.%f").timestamp()
             except ValueError:
-                timestamp = 0.0
-        else:
-            timestamp = 0.0
+                pass
+        return 0.0
 
-        event = match.group(1)
-        session_id = match.group(2)
-        request_id = match.group(3)
-        iteration = int(match.group(4))
-        model_name = match.group(5)
-        body_part_str = match.group(6)
-        reasoning_seq_str = match.group(7)
-        body_str = match.group(8)
+    @staticmethod
+    def _parse_body_part(body_part_str: Optional[str]) -> Optional[Tuple[int, int]]:
+        """解析 body_part 字符串为 (current, total) 元组"""
+        if not body_part_str:
+            return None
+        parts = body_part_str.split("/")
+        return (int(parts[0]), int(parts[1]))
 
-        body_part = None
-        if body_part_str:
-            parts = body_part_str.split("/")
-            body_part = (int(parts[0]), int(parts[1]))
+    @staticmethod
+    def _extract_trace_fields(match, timestamp: float, group_offset: int) -> Dict[str, Any]:
+        """从正则匹配中提取 trace 字段。
 
-        reasoning_seq = None
-        if reasoning_seq_str:
-            reasoning_seq = int(reasoning_seq_str)
-
-        return {
-            "timestamp": timestamp,
-            "event": event,
-            "session_id": session_id,
-            "request_id": request_id,
-            "iteration": iteration,
-            "model_name": model_name,
-            "body_part": body_part,
-            "reasoning_seq": reasoning_seq,
-            "body_str": body_str,
-        }
-
-    def _extract_trace(self, match) -> Dict[str, Any]:
-        timestamp_str = match.group(1)
-        from datetime import datetime
-
-        timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S.%f").timestamp()
-
-        event = match.group(2)
-        session_id = match.group(3)
-        request_id = match.group(4)
-        iteration = int(match.group(5))
-        model_name = match.group(6)
-        body_part_str = match.group(7)
-        reasoning_seq_str = match.group(8)
-        body_str = match.group(9)
-
-        body_part = None
-        if body_part_str:
-            parts = body_part_str.split("/")
-            body_part = (int(parts[0]), int(parts[1]))
-
-        reasoning_seq = None
-        if reasoning_seq_str:
-            reasoning_seq = int(reasoning_seq_str)
+        group_offset: JSON 格式从 group(1) 开始（offset=0），
+                      LOG 格式从 group(2) 开始（offset=1，因为 group(1) 是时间戳）。
+        """
+        o = group_offset
+        event = match.group(1 + o)
+        session_id = match.group(2 + o)
+        request_id = match.group(3 + o)
+        iteration = int(match.group(4 + o))
+        model_name = match.group(5 + o)
+        body_part_str = match.group(6 + o)
+        reasoning_seq_str = match.group(7 + o)
+        body_str = match.group(8 + o)
 
         return {
             "timestamp": timestamp,
@@ -211,8 +180,8 @@ class LogLoader:
             "request_id": request_id,
             "iteration": iteration,
             "model_name": model_name,
-            "body_part": body_part,
-            "reasoning_seq": reasoning_seq,
+            "body_part": LogLoader._parse_body_part(body_part_str),
+            "reasoning_seq": int(reasoning_seq_str) if reasoning_seq_str else None,
             "body_str": body_str,
         }
 

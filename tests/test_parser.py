@@ -21,7 +21,7 @@ class TestTraceParser:
         loader = LogLoader(str(SAMPLE_LOG))
         traces = loader.load()
         parser = TraceParser(traces)
-        requests, responses = parser.parse()
+        requests, responses, _system_metrics = parser.parse()
         return requests, responses
 
     def test_parse_returns_dicts(self):
@@ -29,7 +29,7 @@ class TestTraceParser:
         loader = LogLoader(str(SAMPLE_LOG))
         traces = loader.load()
         parser = TraceParser(traces)
-        requests, responses = parser.parse()
+        requests, responses, _system_metrics = parser.parse()
 
         assert isinstance(requests, dict)
         assert isinstance(responses, dict)
@@ -80,7 +80,7 @@ class TestTraceParser:
         request_traces = [t for t in traces if t["event"] == "stream_request"]
         if request_traces:
             parser = TraceParser(traces)
-            requests, _ = parser.parse()
+            requests, _, _ = parser.parse()
 
             # 检查合并后的请求 body 是完整 JSON
             all_requests = [r for reqs in requests.values() for r in reqs]

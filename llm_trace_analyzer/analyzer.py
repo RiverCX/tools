@@ -1,6 +1,6 @@
 """链路分析器 - 关联请求/响应并生成统计"""
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from .models import (
     AnalysisResult,
@@ -200,12 +200,12 @@ class ChainAnalyzer:
             if subagent_session in self.requests:
                 for req in self.requests[subagent_session]:
                     req.source = "subagent"
-                    req.source_label = self._format_chain_label(chain_path, depth)
+                    req.source_label = self._format_chain_label(chain_path)
                     all_requests.append(req)
             if subagent_session in self.responses:
                 for resp in self.responses[subagent_session]:
                     resp.source = "subagent"
-                    resp.source_label = self._format_chain_label(chain_path, depth)
+                    resp.source_label = self._format_chain_label(chain_path)
                     all_responses.append(resp)
 
         all_requests.sort(key=lambda r: r.timestamp)
@@ -245,15 +245,6 @@ class ChainAnalyzer:
         # 按 (session_id, iteration) 配对
         sorted_items = pair_requests_responses(requests, responses)
 
-        # 构建 session_id -> prev_iteration 的映射，用于判断子 Agent 第一次请求
-        session_first_iteration: Dict[str, int] = {}
-        for i, item in enumerate(sorted_items):
-            req = item["request"]
-            if req:
-                sid = req.session_id
-                if sid not in session_first_iteration:
-                    session_first_iteration[sid] = i
-
         for i, item in enumerate(sorted_items):
             req = item["request"]
             resp = item["response"]
@@ -279,8 +270,6 @@ class ChainAnalyzer:
                 timing.llm_call_duration = resp.timestamp - req.timestamp
 
             # 计算 tool_processing_duration（查找下一个同 session 的请求）
-            is_first_of_session = session_first_iteration.get(timing.session_id) == i
-
             if resp and i < len(sorted_items) - 1:
                 # 找下一个同 session 的请求（跳过其他 session 的交错请求）
                 for j in range(i + 1, len(sorted_items)):
@@ -304,13 +293,18 @@ class ChainAnalyzer:
 
         return timings
 
+    @staticmethod
+    def _extract_tool_name(tc: Dict) -> str:
+        """从 tool call 中提取名称（兼容多种格式）"""
+        return tc.get("name", "") or tc.get("function", {}).get("name", "")
+
     def _has_spawn_subagent(self, resp: LLMResponse) -> bool:
         """检查 response 是否包含 spawn_subagent/fork_agent 工具调用"""
         if not resp.tool_calls:
             return False
         spawn_names = {"spawn_subagent", "fork_agent", "spawn_fork_agent"}
         for tc in resp.tool_calls:
-            name = tc.get("name", "") or tc.get("function", {}).get("name", "")
+            name = self._extract_tool_name(tc)
             if name in spawn_names:
                 return True
         return False
@@ -345,10 +339,6 @@ class ChainAnalyzer:
         # 添加当前 subAgent 到路径末尾
         current_short_name = self._short_task_id(task_id)
         if "_fork_agent_" in task_id:
-            chain_path.append(f"Fork[{current_short_name}]")
-        elif "_subagent_" in task_id:
-            chain_path.append(f"Sub[{current_short_name}]")
-        elif task_id.startswith("fork_fork_agent_"):
             chain_path.append(f"Fork[{current_short_name}]")
         else:
             chain_path.append(f"Sub[{current_short_name}]")
@@ -392,7 +382,7 @@ class ChainAnalyzer:
 
         return depth, chain_path, direct_parent
 
-    def _format_chain_label(self, chain_path: List[str], depth: int) -> str:
+    def _format_chain_label(self, chain_path: List[str]) -> str:
         """格式化调用链标签"""
         return " → ".join(chain_path)
 
@@ -495,7 +485,7 @@ class ChainAnalyzer:
             for resp in chain.responses:
                 if resp.tool_calls:
                     for tc in resp.tool_calls:
-                        name = tc.get("name") or tc.get("function", {}).get("name", "unknown")
+                        name = self._extract_tool_name(tc) or "unknown"
                         tool_call_counts[name] = tool_call_counts.get(name, 0) + 1
 
             if not chain.is_subagent:

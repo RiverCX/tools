@@ -32,7 +32,7 @@ class TestFullPipeline:
 
         # 2. 解析 traces
         parser = TraceParser(traces)
-        requests, responses = parser.parse()
+        requests, responses, _system_metrics = parser.parse()
         assert len(requests) > 0
         assert len(responses) > 0
 
@@ -70,7 +70,7 @@ class TestExpectedResults:
         loader = LogLoader(str(SAMPLE_LOG))
         traces = loader.load()
         parser = TraceParser(traces)
-        requests, responses = parser.parse()
+        requests, responses, _system_metrics = parser.parse()
 
         analyzer = ChainAnalyzer(requests, responses)
         result = analyzer.analyze()
@@ -85,7 +85,7 @@ class TestExpectedResults:
         loader = LogLoader(str(SAMPLE_LOG))
         traces = loader.load()
         parser = TraceParser(traces)
-        requests, responses = parser.parse()
+        requests, responses, _system_metrics = parser.parse()
 
         analyzer = ChainAnalyzer(requests, responses)
         result = analyzer.analyze()
@@ -98,7 +98,7 @@ class TestExpectedResults:
         loader = LogLoader(str(SAMPLE_LOG))
         traces = loader.load()
         parser = TraceParser(traces)
-        requests, responses = parser.parse()
+        requests, responses, _system_metrics = parser.parse()
 
         analyzer = ChainAnalyzer(requests, responses)
         result = analyzer.analyze()
@@ -111,7 +111,7 @@ class TestExpectedResults:
         loader = LogLoader(str(SAMPLE_LOG))
         traces = loader.load()
         parser = TraceParser(traces)
-        requests, responses = parser.parse()
+        requests, responses, _system_metrics = parser.parse()
 
         analyzer = ChainAnalyzer(requests, responses)
         result = analyzer.analyze()
@@ -136,7 +136,7 @@ class TestReportContent:
         loader = LogLoader(str(SAMPLE_LOG))
         traces = loader.load()
         parser = TraceParser(traces)
-        requests, responses = parser.parse()
+        requests, responses, _system_metrics = parser.parse()
 
         analyzer = ChainAnalyzer(requests, responses)
         result = analyzer.analyze()
@@ -151,14 +151,14 @@ class TestReportContent:
 
             # 应包含时间面板
             assert "timing-panel" in content
-            assert "Timing Overview" in content
+            assert "Timing" in content
 
     def test_report_iteration_blocks(self):
         """验证迭代块"""
         loader = LogLoader(str(SAMPLE_LOG))
         traces = loader.load()
         parser = TraceParser(traces)
-        requests, responses = parser.parse()
+        requests, responses, _system_metrics = parser.parse()
 
         analyzer = ChainAnalyzer(requests, responses)
         result = analyzer.analyze()
@@ -174,14 +174,14 @@ class TestReportContent:
             # 应包含多个迭代块
             assert "iteration-block" in content
             # 检查迭代编号
-            assert "Iteration 1" in content
+            assert 'data-iteration="1"' in content
 
     def test_report_subagent_section(self):
         """验证 subagent 区域"""
         loader = LogLoader(str(SAMPLE_LOG))
         traces = loader.load()
         parser = TraceParser(traces)
-        requests, responses = parser.parse()
+        requests, responses, _system_metrics = parser.parse()
 
         analyzer = ChainAnalyzer(requests, responses)
         result = analyzer.analyze()
@@ -198,7 +198,7 @@ class TestReportContent:
 
             # 如果有 subagent，应显示
             if chain.subagents:
-                assert "Subagents" in content or "subagent-node" in content
+                assert "agent-block" in content or "subagent" in content
 
 
 class TestEdgeCases:
