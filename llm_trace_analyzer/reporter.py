@@ -1483,6 +1483,11 @@ class HTMLReporter:
                 f'</tr>'
             )
         parts.append('</table>')
+        parts.append(
+            '<div style="margin-top:8px;font-size:12px;color:#d32f2f">'
+            '⚠ 时间为估算值：将每轮 LLM 响应到下次请求的间隔均分给该轮所有工具调用，'
+            '末轮迭代无后续请求记为 0，不含单个工具的实际执行时长。</div>'
+        )
         return "\n".join(parts)
 
     def _generate_metrics_tips_html(self) -> str:
@@ -1499,7 +1504,9 @@ class HTMLReporter:
             '<tr style="border-bottom:1px solid #e0e0e0"><td style="padding:6px 12px;font-weight:600;vertical-align:top">Tool 耗时</td>'
             '<td style="padding:6px 12px">LLM 返回结果到下一轮请求之间的间隔时间。'
             '<span style="color:#d32f2f">⚠ 此数值不仅包含工具本身的执行时间，'
-            '还包含框架调度、上下文引擎处理、子 Agent 启动等开销，可能明显大于工具实际执行时间。</span></td></tr>'
+            '还包含框架调度、上下文引擎处理、子 Agent 启动等开销。'
+            'Tool Calls 表中的单工具时间为估算值（将每轮总耗时均分给所有工具调用），'
+            '末轮迭代无后续请求记为 0，不反映单个工具的实际执行时长。</span></td></tr>'
             '<tr><td style="padding:6px 12px;font-weight:600;vertical-align:top">Cache ⚠</td>'
             '<td style="padding:6px 12px"><span style="color:#d32f2f">⚠ 当前数据不准确。</span>'
             '框架仅在同步调用（invoke）模式下记录 cache_tokens，'
