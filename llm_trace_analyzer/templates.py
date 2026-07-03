@@ -321,15 +321,17 @@ INDEX_TEMPLATE = """
             const base = statsMap[baselineSessionId];
 
             const metrics = [
+                ['Prompt', 'prompt', 'string'],
                 ['Model', 'model', 'string'],
                 ['Iterations', 'iterations', 'number'],
                 ['LLM Time', 'llm_time', 'time'],
                 ['Avg LLM', 'avg_llm_time', 'time'],
                 ['Tool Time', 'tool_time', 'time'],
                 ['Avg Tool', 'avg_tool_time', 'time'],
-                ['Tokens', 'tokens', 'number'],
+                ['Total Tokens', 'tokens', 'number'],
+                ['Output Tokens', 'output_tokens', 'number'],
                 ['Cache Tokens', 'cache_tokens', 'number'],
-                ['Tokens/sec', 'tokens_per_sec', 'rate'],
+                ['Output tok/s', 'tokens_per_sec', 'rate'],
                 ['Tool Calls', 'tool_calls', 'number'],
             ];
 

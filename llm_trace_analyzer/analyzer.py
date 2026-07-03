@@ -550,6 +550,7 @@ class ChainAnalyzer:
         # Per-session 统计
         for chain in parent_chains:
             s_tokens = sum(r.total_tokens for r in chain.responses)
+            s_output_tokens = sum(r.output_tokens for r in chain.responses)
             s_cache_tokens = sum(r.cache_tokens for r in chain.responses)
             s_tool_calls = sum(len(r.tool_calls) for r in chain.responses if r.tool_calls)
             iters = chain.total_iterations
@@ -562,8 +563,9 @@ class ChainAnalyzer:
                 "avg_llm_time": chain.total_llm_duration_seconds / iters if iters > 0 else 0,
                 "avg_tool_time": chain.total_tool_duration_seconds / iters if iters > 0 else 0,
                 "tokens": s_tokens,
+                "output_tokens": s_output_tokens,
                 "cache_tokens": s_cache_tokens,
-                "tokens_per_sec": s_tokens / chain.total_llm_duration_seconds if chain.total_llm_duration_seconds > 0 else 0,
+                "tokens_per_sec": s_output_tokens / chain.total_llm_duration_seconds if chain.total_llm_duration_seconds > 0 else 0,
                 "tool_calls": s_tool_calls,
             })
 

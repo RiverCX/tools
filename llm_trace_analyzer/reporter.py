@@ -115,6 +115,13 @@ class HTMLReporter:
             )
             session_rows.append(row)
 
+        # 为 session_stats 添加 prompt 字段（第一条用户消息）
+        prompt_map = {}
+        for chain in result.sorted_sessions:
+            prompt_map[chain.session_id] = self._extract_first_user_message(chain)
+        for s in stats.session_stats:
+            s["prompt"] = prompt_map.get(s["session_id"], "")
+
         session_stats_json = json.dumps(stats.session_stats, ensure_ascii=False)
 
         index_html = INDEX_TEMPLATE.format(
@@ -1337,7 +1344,7 @@ class HTMLReporter:
             '<td style="padding:6px 12px">将每次迭代的 Tool 耗时均分给该轮所有工具调用。'
             '<span style="color:#d32f2f">⚠ 这是近似值，各工具的实际执行时间可能差异较大。</span></td></tr>'
             '<tr style="border-bottom:1px solid #e0e0e0"><td style="padding:6px 12px;font-weight:600;vertical-align:top">Tokens/sec</td>'
-            '<td style="padding:6px 12px">总 Token 数 ÷ 总 LLM 耗时，反映整体吞吐水平，并非单次调用的速率。</td></tr>'
+            '<td style="padding:6px 12px">输出 Token 数 ÷ 总 LLM 耗时，反映模型生成速度，并非单次调用的速率。</td></tr>'
             '<tr style="border-bottom:1px solid #e0e0e0"><td style="padding:6px 12px;font-weight:600;vertical-align:top">P50 / P90 / P95 / P99</td>'
             '<td style="padding:6px 12px">按迭代粒度的耗时百分位值，例如 P90 表示 90% 的迭代耗时低于此值。</td></tr>'
             '<tr><td style="padding:6px 12px;font-weight:600;vertical-align:top">时间分布图</td>'
@@ -1355,7 +1362,7 @@ class HTMLReporter:
         parts.append('<div class="stat-cards">')
         avg_llm_overview = stats.total_llm_time_seconds / stats.total_iterations if stats.total_iterations > 0 else 0
         avg_tool_overview = stats.total_tool_time_seconds / stats.total_iterations if stats.total_iterations > 0 else 0
-        tps_overview = stats.total_tokens / stats.total_llm_time_seconds if stats.total_llm_time_seconds > 0 else 0
+        tps_overview = stats.total_output_tokens / stats.total_llm_time_seconds if stats.total_llm_time_seconds > 0 else 0
         overview = [
             (stats.total_sessions, "Sessions"),
             (stats.total_iterations, "Iterations"),
@@ -1449,7 +1456,7 @@ class HTMLReporter:
         parts.append("<h3>Tokens</h3>")
         cache_rate = (stats.total_cache_tokens / stats.total_tokens * 100) if stats.total_tokens > 0 else 0
         avg_tokens = stats.total_tokens // stats.total_iterations if stats.total_iterations > 0 else 0
-        tps = stats.total_tokens / stats.total_llm_time_seconds if stats.total_llm_time_seconds > 0 else 0
+        tps = stats.total_output_tokens / stats.total_llm_time_seconds if stats.total_llm_time_seconds > 0 else 0
         token_rows = [
             ("Input", f"{stats.total_input_tokens:,}"),
             ("Output", f"{stats.total_output_tokens:,}"),
@@ -1531,7 +1538,7 @@ class HTMLReporter:
         parts.append('<div class="stat-cards">')
         avg_llm_s = chain.total_llm_duration_seconds / num_iters if num_iters > 0 else 0
         avg_tool_s = chain.total_tool_duration_seconds / num_iters if num_iters > 0 else 0
-        tps_s = s_total / chain.total_llm_duration_seconds if chain.total_llm_duration_seconds > 0 else 0
+        tps_s = s_output / chain.total_llm_duration_seconds if chain.total_llm_duration_seconds > 0 else 0
         overview = [
             (num_iters, "Iterations"),
             (len(chain.subagents), "Subagents"),
@@ -1613,7 +1620,7 @@ class HTMLReporter:
         parts.append("<h3>Tokens</h3>")
         cache_rate = (s_cache / s_total * 100) if s_total > 0 else 0
         avg_tokens = s_total // num_iters if num_iters > 0 else 0
-        tps_s2 = s_total / chain.total_llm_duration_seconds if chain.total_llm_duration_seconds > 0 else 0
+        tps_s2 = s_output / chain.total_llm_duration_seconds if chain.total_llm_duration_seconds > 0 else 0
         token_rows = [
             ("Input", f"{s_input:,}"),
             ("Output", f"{s_output:,}"),
