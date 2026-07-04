@@ -1311,14 +1311,6 @@ class HTMLReporter:
 
             tool_count, has_failure = iter_info.get((t.session_id, t.iteration_num), (0, False))
             fail_cls = " chart-bar-fail" if has_failure else ""
-            count_html = ""
-            if tool_count > 0 and tool_h > 2:
-                count_html = (
-                    f'<span class="chart-tool-count">'
-                    f'<span class="chart-tc-line"></span>'
-                    f'<span class="chart-tc-num">{tool_count}</span>'
-                    f"</span>"
-                )
 
             bars.append(
                 f'<div class="chart-bar-col" '
@@ -1329,7 +1321,7 @@ class HTMLReporter:
                 f'onmousemove="moveChartTooltip(event)" '
                 f'onmouseleave="hideChartTooltip()">'
                 f'<div class="chart-bar{fail_cls}" style="height:{chart_height}px">'
-                f'<div class="chart-bar-tool" style="height:{tool_h:.1f}px">{count_html}</div>'
+                f'<div class="chart-bar-tool" style="height:{tool_h:.1f}px"></div>'
                 f'<div class="chart-bar-llm" style="height:{llm_h:.1f}px"></div>'
                 f"</div></div>"
             )
@@ -1368,9 +1360,10 @@ class HTMLReporter:
         tc_line_points: List[str] = []
         if max_tc > 0:
             for idx, tc in enumerate(tool_counts_list):
-                x_pct = ((idx + 0.5) / len(sorted_timings)) * 100
-                y_pct = 100 - (tc / max_tc) * 90  # 90% max height to leave room
-                tc_line_points.append(f"{x_pct:.1f},{y_pct:.1f}")
+                if tc > 0:
+                    x_pct = ((idx + 0.5) / len(sorted_timings)) * 100
+                    y_pct = 100 - (tc / max_tc) * 90  # 90% max height to leave room
+                    tc_line_points.append(f"{x_pct:.1f},{y_pct:.1f}")
 
         tc_svg = ""
         if len(tc_line_points) >= 2:
