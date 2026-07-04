@@ -1227,7 +1227,7 @@ class HTMLReporter:
     def _render_timing_chart(
         self, timings: List[IterationTiming], chains: Optional[List[LLMChain]] = None
     ) -> str:
-        """渲染时间分布堆叠柱状图（含 LLM/Tool 切换、Pxx 参考线、工具次数/失败标注）"""
+        """渲染时间分布堆叠柱状图（含 LLM/Tool 切换、Percentile 参考线、工具次数/失败标注）"""
         if not timings:
             return ""
 
@@ -1353,26 +1353,43 @@ class HTMLReporter:
                 f"{label}: <strong>{self._format_duration(val)}</strong></span>"
             )
 
-        # 工具调用次数虚线折线（SVG）
+        # 工具调用次数 + 失败次数折线（SVG）
         tool_counts_list = [
             iter_info.get((t.session_id, t.iteration_num), (0, 0))[0]
             for t in sorted_timings
         ]
+        fail_counts_list = [
+            iter_info.get((t.session_id, t.iteration_num), (0, 0))[1]
+            for t in sorted_timings
+        ]
         max_tc = max(tool_counts_list) if tool_counts_list else 0
-        tc_line_points: List[str] = []
-        if max_tc > 0:
-            for idx, tc in enumerate(tool_counts_list):
-                if tc > 0:
-                    x_pct = ((idx + 0.5) / len(sorted_timings)) * 100
-                    y_pct = 100 - (tc / max_tc) * 90  # 90% max height to leave room
-                    tc_line_points.append(f"{x_pct:.1f},{y_pct:.1f}")
+        max_fc = max(fail_counts_list) if fail_counts_list else 0
+        max_all = max(max_tc, max_fc) if max(max_tc, max_fc) > 0 else 1
+
+        tc_points: List[str] = []
+        fc_points: List[str] = []
+        for idx in range(len(sorted_timings)):
+            x_pct = ((idx + 0.5) / len(sorted_timings)) * 100
+            tc = tool_counts_list[idx]
+            fc = fail_counts_list[idx]
+            if tc > 0:
+                y = 100 - (tc / max_all) * 90
+                tc_points.append(f"{x_pct:.1f},{y:.1f}")
+            if fc > 0:
+                y = 100 - (fc / max_all) * 90
+                fc_points.append(f"{x_pct:.1f},{y:.1f}")
+
+        tc_polylines: List[str] = []
+        if len(tc_points) >= 2:
+            tc_polylines.append(f'<polyline class="tc-line" points="{" ".join(tc_points)}" />')
+        if len(fc_points) >= 2:
+            tc_polylines.append(f'<polyline class="fc-line" points="{" ".join(fc_points)}" />')
 
         tc_svg = ""
-        if len(tc_line_points) >= 2:
-            pts = " ".join(tc_line_points)
+        if tc_polylines:
             tc_svg = (
                 f'<svg class="chart-tc-svg" viewBox="0 0 100 100" preserveAspectRatio="none">'
-                f'<polyline points="{pts}" /></svg>'
+                f'{"".join(tc_polylines)}</svg>'
             )
 
         # 工具次数/失败统计
@@ -1380,11 +1397,11 @@ class HTMLReporter:
         fail_iters_count = sum(1 for _, (_, f) in iter_info.items() if f > 0)
         calls_legend = (
             f'<span class="chart-calls-legend-item">'
-            f'<span class="chart-calls-legend-line"></span>'
+            f'<span class="chart-calls-legend-line tc-legend"></span>'
             f"Tool Calls (max: {max_tc})</span>"
             f'<span class="chart-calls-legend-item">'
-            f'<span class="chart-calls-legend-dot"></span>'
-            f"Failed ({fail_iters_count}/{total_iters})</span>"
+            f'<span class="chart-calls-legend-line fc-legend"></span>'
+            f"Failed (max: {max_fc}, {fail_iters_count} iters)</span>"
         )
 
         chart_id = f"chart_{id(timings) % 10000}"
@@ -1401,7 +1418,7 @@ class HTMLReporter:
             f'<div class="chart-legend-item chart-toggle active" data-overlay="calls" onclick="toggleChartOverlay(this)">'
             f"Tool Calls</div>"
             f'<div class="chart-legend-item chart-toggle" data-overlay="pxx" onclick="toggleChartOverlay(this)">'
-            f"Pxx Lines</div>"
+            f"Percentiles</div>"
             "</div>"
             f'<div class="timing-chart{dense_class}">{"".join(bars)}{"".join(pxx_lines)}{tc_svg}</div>'
             f'<div class="chart-pxx-legend">{"".join(pxx_legend_items)}</div>'

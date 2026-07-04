@@ -199,10 +199,12 @@ INDEX_TEMPLATE = """
 .chart-pxx-legend-line {{ display: inline-block; width: 16px; border-top: 2px dashed; }}
 .chart-tool-count {{ display: none; }}
 .chart-tc-svg {{ position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; overflow: visible; }}
-.chart-tc-svg polyline {{ fill: none; stroke: #e65100; stroke-width: 1.5; vector-effect: non-scaling-stroke; stroke-dasharray: 4 3; }}
-.chart-calls-legend-line {{ display: inline-block; width: 16px; border-top: 2px dashed #e65100; vertical-align: middle; }}
+.chart-tc-svg .tc-line {{ fill: none; stroke: #90a4ae; stroke-width: 1; vector-effect: non-scaling-stroke; }}
+.chart-tc-svg .fc-line {{ fill: none; stroke: #d32f2f; stroke-width: 1; vector-effect: non-scaling-stroke; stroke-dasharray: 3 2; }}
+.chart-calls-legend-line {{ display: inline-block; width: 16px; vertical-align: middle; }}
+.chart-calls-legend-line.tc-legend {{ border-top: 1px solid #90a4ae; }}
+.chart-calls-legend-line.fc-legend {{ border-top: 1.5px dashed #d32f2f; }}
 .timing-chart-wrapper.overlay-mode-pxx .chart-tc-svg {{ display: none; }}
-.timing-chart-wrapper.overlay-mode-pxx .chart-tool-count {{ display: none; }}
 .chart-bar-fail {{ background: rgba(211, 47, 47, 0.08); }}
 .chart-fail-bar {{ position: absolute; top: -3px; left: 10%; width: 80%; height: 2px; background: #d32f2f; border-radius: 1px; z-index: 3; }}
 .chart-legend-sep {{ width: 1px; height: 16px; background: #ccc; margin: 0 8px; display: inline-block; vertical-align: middle; }}
@@ -874,10 +876,12 @@ SESSION_DETAIL_TEMPLATE = """
 .chart-pxx-legend-line {{ display: inline-block; width: 16px; border-top: 2px dashed; }}
 .chart-tool-count {{ display: none; }}
 .chart-tc-svg {{ position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; overflow: visible; }}
-.chart-tc-svg polyline {{ fill: none; stroke: #e65100; stroke-width: 1.5; vector-effect: non-scaling-stroke; stroke-dasharray: 4 3; }}
-.chart-calls-legend-line {{ display: inline-block; width: 16px; border-top: 2px dashed #e65100; vertical-align: middle; }}
+.chart-tc-svg .tc-line {{ fill: none; stroke: #90a4ae; stroke-width: 1; vector-effect: non-scaling-stroke; }}
+.chart-tc-svg .fc-line {{ fill: none; stroke: #d32f2f; stroke-width: 1; vector-effect: non-scaling-stroke; stroke-dasharray: 3 2; }}
+.chart-calls-legend-line {{ display: inline-block; width: 16px; vertical-align: middle; }}
+.chart-calls-legend-line.tc-legend {{ border-top: 1px solid #90a4ae; }}
+.chart-calls-legend-line.fc-legend {{ border-top: 1.5px dashed #d32f2f; }}
 .timing-chart-wrapper.overlay-mode-pxx .chart-tc-svg {{ display: none; }}
-.timing-chart-wrapper.overlay-mode-pxx .chart-tool-count {{ display: none; }}
 .chart-bar-fail {{ background: rgba(211, 47, 47, 0.08); }}
 .chart-fail-bar {{ position: absolute; top: -3px; left: 10%; width: 80%; height: 2px; background: #d32f2f; border-radius: 1px; z-index: 3; }}
 .chart-legend-sep {{ width: 1px; height: 16px; background: #ccc; margin: 0 8px; display: inline-block; vertical-align: middle; }}
