@@ -153,7 +153,7 @@ INDEX_TEMPLATE = """
 /* Statistics Panel */
 .stat-cards {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; }}
 .stat-card {{ background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; }}
-.stat-card .stat-value {{ font-size: 28px; font-weight: bold; color: #4a90d9; }}
+.stat-card .stat-value {{ font-size: 28px; font-weight: bold; color: #4a90d9; white-space: nowrap; }}
 .stat-card .stat-label {{ font-size: 13px; color: #666; margin-top: 4px; }}
 .stat-card-warn .stat-value {{ color: #d32f2f; }}
 .stat-section {{ background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
@@ -823,7 +823,7 @@ SESSION_DETAIL_TEMPLATE = """
 /* Statistics Panel */
 .stat-cards {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }}
 .stat-card {{ background: white; border-radius: 8px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; }}
-.stat-card .stat-value {{ font-size: 24px; font-weight: bold; color: #4a90d9; }}
+.stat-card .stat-value {{ font-size: 24px; font-weight: bold; color: #4a90d9; white-space: nowrap; }}
 .stat-card .stat-label {{ font-size: 12px; color: #666; margin-top: 4px; }}
 .stat-card-warn .stat-value {{ color: #d32f2f; }}
 .stat-section {{ background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}

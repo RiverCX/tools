@@ -1243,12 +1243,16 @@ class HTMLReporter:
         iter_info: Dict[Tuple[str, int], Tuple[int, bool]] = {}
         if chains:
             for chain in chains:
-                resp_tools: Dict[Tuple[str, int], int] = {}
+                # 构建 (session_id, response_timestamp) -> tool_count 映射
+                ts_tool_count: Dict[Tuple[str, float], int] = {}
                 for resp in chain.responses:
-                    if resp.tool_calls:
-                        resp_tools[(resp.session_id, resp.iteration)] = len(resp.tool_calls)
+                    if resp.tool_calls and resp.timestamp > 0:
+                        ts_tool_count[(resp.session_id, round(resp.timestamp, 3))] = len(
+                            resp.tool_calls
+                        )
 
-                fail_iters: set = set()
+                # 构建 (session_id, request_timestamp) -> has_failure 映射
+                ts_fail: set = set()
                 seen_ids: set = set()
                 for req in chain.requests:
                     for msg in req.body.get("messages", []):
@@ -1260,12 +1264,17 @@ class HTMLReporter:
                         seen_ids.add(tc_id)
                         content = msg.get("content", "")
                         if isinstance(content, str) and detect_tool_failure(content)[0]:
-                            fail_iters.add((req.session_id, req.iteration))
+                            ts_fail.add((req.session_id, round(req.timestamp, 3)))
 
-                for key, count in resp_tools.items():
-                    sid, iter_num = key
-                    has_fail = key in fail_iters or (sid, iter_num - 1) in fail_iters
-                    iter_info[key] = (count, has_fail)
+                # 按 timing 的 iteration_num 存储（key 用 timing 的 session_id + iteration_num）
+                for t in chain.iteration_timings:
+                    resp_ts = round(t.response_timestamp, 3)
+                    tool_count = ts_tool_count.get((t.session_id, resp_ts), 0)
+                    # 查找对应的 request timestamp 来判断 failure
+                    # timing 的 request_timestamp 对应下一个 request，用它来查 failure
+                    req_ts = round(t.request_timestamp, 3)
+                    has_fail = (t.session_id, req_ts) in ts_fail
+                    iter_info[(t.session_id, t.iteration_num)] = (tool_count, has_fail)
 
         chart_height = 200
         bars: List[str] = []
@@ -1723,10 +1732,18 @@ class HTMLReporter:
         total_subagents = sum(len(chain.subagents) for chain in result.sorted_sessions)
         # 占比计算：以 LLM + Tool 总时间为分母
         sum_dur = stats.total_llm_time_seconds + stats.total_tool_time_seconds
-        llm_pct = f" ({stats.total_llm_time_seconds / sum_dur * 100:.0f}%)" if sum_dur > 0 else ""
-        tool_pct = f" ({stats.total_tool_time_seconds / sum_dur * 100:.0f}%)" if sum_dur > 0 else ""
+        llm_pct = (
+            f' <small style="font-size:55%;color:#888">({stats.total_llm_time_seconds / sum_dur * 100:.0f}%)</small>'
+            if sum_dur > 0
+            else ""
+        )
+        tool_pct = (
+            f' <small style="font-size:55%;color:#888">({stats.total_tool_time_seconds / sum_dur * 100:.0f}%)</small>'
+            if sum_dur > 0
+            else ""
+        )
         fail_pct = (
-            f" ({stats.failed_tool_calls / stats.total_tool_calls * 100:.1f}%)"
+            f' <small style="font-size:55%;color:#888">({stats.failed_tool_calls / stats.total_tool_calls * 100:.1f}%)</small>'
             if stats.total_tool_calls > 0
             else ""
         )
@@ -1988,15 +2005,19 @@ class HTMLReporter:
         # 占比计算：以 LLM + Tool 总时间为分母
         s_sum_dur = chain.total_llm_duration_seconds + chain.total_tool_duration_seconds
         s_llm_pct = (
-            f" ({chain.total_llm_duration_seconds / s_sum_dur * 100:.0f}%)" if s_sum_dur > 0 else ""
+            f' <small style="font-size:55%;color:#888">({chain.total_llm_duration_seconds / s_sum_dur * 100:.0f}%)</small>'
+            if s_sum_dur > 0
+            else ""
         )
         s_tool_pct = (
-            f" ({chain.total_tool_duration_seconds / s_sum_dur * 100:.0f}%)"
+            f' <small style="font-size:55%;color:#888">({chain.total_tool_duration_seconds / s_sum_dur * 100:.0f}%)</small>'
             if s_sum_dur > 0
             else ""
         )
         s_fail_pct = (
-            f" ({s_failed_total / total_tool_calls * 100:.1f}%)" if total_tool_calls > 0 else ""
+            f' <small style="font-size:55%;color:#888">({s_failed_total / total_tool_calls * 100:.1f}%)</small>'
+            if total_tool_calls > 0
+            else ""
         )
         parts.append(
             self._stat_cards_html(
