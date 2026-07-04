@@ -1403,7 +1403,7 @@ class HTMLReporter:
             f"Tool Calls (max: {max_tc})</span>"
             f'<span class="chart-calls-legend-item">'
             f'<span class="chart-calls-legend-line fc-legend"></span>'
-            f"Failed (max: {max_fc}, {fail_iters_count} iters)</span>"
+            f"Failed (max: {max_fc}, {fail_iters_count}/{total_iters})</span>"
         )
 
         chart_id = f"chart_{id(timings) % 10000}"
