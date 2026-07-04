@@ -375,8 +375,8 @@ INDEX_TEMPLATE = """
                     ['Output Tokens', 'output_tokens', 'number', true],
                     ['Cache Tokens ⚠', 'cache_tokens', 'number', false],
                     ['Output tok/s', 'tokens_per_sec', 'rate', false],
-                    ['Reasoning Chars', 'reasoning_chars', 'number'],
-                    ['Content Chars', 'content_chars', 'number'],
+                    ['Reasoning Chars', 'reasoning_chars', 'number', true],
+                    ['Content Chars', 'content_chars', 'number', true],
                 ]],
                 ['工具信息', [
                     ['Tool Time', 'tool_time', 'time', true],
