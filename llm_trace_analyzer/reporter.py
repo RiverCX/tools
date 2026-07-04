@@ -1456,6 +1456,9 @@ class HTMLReporter:
 
         chart_data: List[Dict] = []
         for i, resp in enumerate(sorted_resps, 1):
+            # 跳过 input/output 均为 0 的响应（仅含 reasoning、无 token 统计的中间态）
+            if resp.input_tokens == 0 and resp.output_tokens == 0:
+                continue
             llm_dur = dur_lookup.get(round(resp.timestamp, 3), 0.0)
             chart_data.append(
                 {
