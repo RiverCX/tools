@@ -1368,6 +1368,7 @@ class HTMLReporter:
 
         tc_points: List[str] = []
         fc_points: List[str] = []
+        has_any_fail = any(f > 0 for f in fail_counts_list)
         for idx in range(len(sorted_timings)):
             x_pct = ((idx + 0.5) / len(sorted_timings)) * 100
             tc = tool_counts_list[idx]
@@ -1375,8 +1376,9 @@ class HTMLReporter:
             if tc > 0:
                 y = 100 - (tc / max_all) * 90
                 tc_points.append(f"{x_pct:.1f},{y:.1f}")
-            if fc > 0:
-                y = 100 - (fc / max_all) * 90
+            # 失败线：包含所有迭代，fc=0 时落底（y=100），形成尖峰
+            if has_any_fail:
+                y = 100 - (fc / max_all) * 90 if fc > 0 else 100
                 fc_points.append(f"{x_pct:.1f},{y:.1f}")
 
         tc_polylines: List[str] = []

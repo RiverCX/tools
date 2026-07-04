@@ -199,10 +199,10 @@ INDEX_TEMPLATE = """
 .chart-pxx-legend-line {{ display: inline-block; width: 16px; border-top: 2px dashed; }}
 .chart-tool-count {{ display: none; }}
 .chart-tc-svg {{ position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; overflow: visible; }}
-.chart-tc-svg .tc-line {{ fill: none; stroke: #90a4ae; stroke-width: 1; vector-effect: non-scaling-stroke; }}
+.chart-tc-svg .tc-line {{ fill: none; stroke: #43a047; stroke-width: 1; vector-effect: non-scaling-stroke; stroke-dasharray: 3 2; }}
 .chart-tc-svg .fc-line {{ fill: none; stroke: #d32f2f; stroke-width: 1; vector-effect: non-scaling-stroke; stroke-dasharray: 3 2; }}
 .chart-calls-legend-line {{ display: inline-block; width: 16px; vertical-align: middle; }}
-.chart-calls-legend-line.tc-legend {{ border-top: 1px solid #90a4ae; }}
+.chart-calls-legend-line.tc-legend {{ border-top: 1.5px dashed #43a047; }}
 .chart-calls-legend-line.fc-legend {{ border-top: 1.5px dashed #d32f2f; }}
 .timing-chart-wrapper.overlay-mode-pxx .chart-tc-svg {{ display: none; }}
 .chart-bar-fail {{ background: rgba(211, 47, 47, 0.08); }}
@@ -876,10 +876,10 @@ SESSION_DETAIL_TEMPLATE = """
 .chart-pxx-legend-line {{ display: inline-block; width: 16px; border-top: 2px dashed; }}
 .chart-tool-count {{ display: none; }}
 .chart-tc-svg {{ position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; overflow: visible; }}
-.chart-tc-svg .tc-line {{ fill: none; stroke: #90a4ae; stroke-width: 1; vector-effect: non-scaling-stroke; }}
+.chart-tc-svg .tc-line {{ fill: none; stroke: #43a047; stroke-width: 1; vector-effect: non-scaling-stroke; stroke-dasharray: 3 2; }}
 .chart-tc-svg .fc-line {{ fill: none; stroke: #d32f2f; stroke-width: 1; vector-effect: non-scaling-stroke; stroke-dasharray: 3 2; }}
 .chart-calls-legend-line {{ display: inline-block; width: 16px; vertical-align: middle; }}
-.chart-calls-legend-line.tc-legend {{ border-top: 1px solid #90a4ae; }}
+.chart-calls-legend-line.tc-legend {{ border-top: 1.5px dashed #43a047; }}
 .chart-calls-legend-line.fc-legend {{ border-top: 1.5px dashed #d32f2f; }}
 .timing-chart-wrapper.overlay-mode-pxx .chart-tc-svg {{ display: none; }}
 .chart-bar-fail {{ background: rgba(211, 47, 47, 0.08); }}
